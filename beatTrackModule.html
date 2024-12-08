@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+  <meta http-equiv="CONTENT-TYPE" content="text/html; charset=UTF-8">
+  <title>Beat Track Module</title>
+</head>
+<body>
+  <div class="flex-column">     
+     <div class="label">Audio File:</div>
+     <div id="beat-track-name-display" class="inset single-line display"></div>
+     <button id="beat-track-load-button" class="outset button">LOD</button>  </div>
+  </div>
+  <div class="flex-column ">
+    <div id="bpm-detect-label" class="label">BPM Detect:</div>
+    <div id="bpm-detect-container" class="module-subsection">
+    <div class="flex-row">  
+       <button id="try-bpm-button" class="outset button">TRY</button>
+       <button id="commit-bpm-button" class="outset button">COMMIT</button>
+    </div>
+    <div class="flex-row">
+       <button class="outset button bpm-inc-button" id="bpm-div-button">/2</button>
+       <input class="inset single-line display">
+       <button class="outset button bpm-inc-button" id="bpm-mult-button">x2</button>
+     </div>
+  </div> <!--column-->
+  <div class = "flex-column">
+     <div class="label">Properties:</div>
+     <div id = "beat-track-value-selector" class="module-subsextuin value-selector"></div>
+  </div> <!--column-->
+ 
+       
+  
+</body>
+</html>
