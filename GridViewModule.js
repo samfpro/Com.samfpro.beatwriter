@@ -7,7 +7,6 @@ class GridViewModule extends Module {
     this.gridViewDisplay = null;
     this.gridContainer = null;
     this.cells = [];
-    this.gridCells = [];
     this.startMarkers = [];
     this.lastStartMarker = null;
     this.endMarkers = [];
@@ -15,7 +14,9 @@ class GridViewModule extends Module {
     this.startMarkerContainer = null;
     this.endMarkerContainer = null;
     this.rowLabelContainer = null;
+    this.modeWrite = new ModeWrite(app);
   }
+  
 
   setupDOM() {
     super.setupDOM();
@@ -29,6 +30,9 @@ class GridViewModule extends Module {
     this.gridContainer.addEventListener("click", (event) => {
       this.handleGridCellClick(event);
     });
+    this.gridContainer.addEventListener("keyup", (event) => {
+     this.handleGridKeyup(event);
+    });
     // Event listeners for marker containers
     this.startMarkerContainer.addEventListener("click", (event) => {
       this.handleMarkerClick(event, "start");
@@ -38,66 +42,102 @@ class GridViewModule extends Module {
     });
   }
   
-  makeCellCurrent(index){
+  makeCellCurrent(index) {
     const gridCell = this.cells[index].gridCell;
     gridCell.contentEditable = true;
     gridCell.focus();
-  }
+
+    // Check if the cell is not blank
+    if (gridCell.textContent.trim() !== "") {
+        // Select all text in the grid cell
+        const range = document.createRange();
+        range.selectNodeContents(gridCell);
+
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+    }
+}
   
   
-  generateGrid(cells) {
-    this.cells = cells;
+  generateGrid() {
+    this.gridContainer.innerHTML = "";
+    const rowLabelContainers = this.gridViewDisplay.querySelectorAll(".row-label-container");
+    const columnLabelContainers = this.gridViewDisplay.querySelectorAll(".column-label-container");
+
     for (let i = 0; i < GRID_CELL_COUNT; i++) {
-      const cell = new Cell(this, i);
-      this.cells.push(cell);
+        const cell = new Cell(this, i);
+        this.cells.push(cell);
     }
 
     for (let i = 0; i < MARKER_COUNT; i++) {
-      // Add row labels
-      const rowLabelLeft = document.createElement("div");
-      const rowLabelRight = document.createElement("div");
-      rowLabelLeft.textContent = i;
-      rowLabelRight.textContent = i;
-      rowLabelLeft.classList.add("row-label");
-      rowLabelRight.classList.add("row-label");
-      this.gridViewDisplay.querySelectorAll(".row-label-container")[0].appendChild(rowLabelLeft);
-      this.gridViewDisplay.querySelectorAll(".row-label-container")[1].appendChild(rowLabelRight);
+        // Add row labels
+        ["row-label-container", "row-label-container"].forEach((container, idx) => {
+            const rowLabel = document.createElement("div");
+            rowLabel.textContent = i;
+            rowLabel.classList.add("row-label");
+            rowLabelContainers[idx].appendChild(rowLabel);
+        });
 
-      // Add column labels
-      if (i < 16) {
-        const colLabelTop = document.createElement("div");
-        const colLabelBottom = document.createElement("div");
-        colLabelTop.textContent = i + 1;
-        colLabelBottom.textContent = i + 1;
-        colLabelTop.classList.add("column-label");
-        colLabelBottom.classList.add("column-label");
-        this.gridViewDisplay.querySelectorAll(".column-label-container")[0].appendChild(colLabelTop);
-        this.gridViewDisplay.querySelectorAll(".column-label-container")[1].appendChild(colLabelBottom);
-      }
+        // Add column labels
+        if (i < 16) {
+            ["column-label-container", "column-label-container"].forEach((container, idx) => {
+                const colLabel = document.createElement("div");
+                colLabel.textContent = i + 1;
+                colLabel.classList.add("column-label");
+                columnLabelContainers[idx].appendChild(colLabel);
+            });
+        }
 
-      // Create markers
-      this.startMarkers.push(new StartMarker(this, i).startMarkerCell);
-      this.endMarkers.push(new EndMarker(this, i).endMarkerCell);
+        // Create markers
+        this.startMarkers.push(new StartMarker(this, i).startMarkerCell);
+        this.endMarkers.push(new EndMarker(this, i).endMarkerCell);
     }
-  }
+}
 
   handleGridCellClick(event) {
-    console.log("detected click in grid");
+    console.log("Detected click in grid");
     const cellElement = event.target.closest(".grid-cell");
     if (!cellElement) return; // Ignore clicks outside cells
 
     const cellIndex = cellElement.dataset.index;
-    if (cellIndex)
-    {
-      console.log(`Grid cell ${cellIndex} clicked`);
-
-      // Pass the clicked cell index to the DiskModule
-      const diskModule = this.app.getModule("disk");
-      if (diskModule) {
-        diskModule.currentCell = cellIndex;
-      }
+    
+    if (cellIndex) {
+        console.log(`Grid cell ${cellIndex} clicked`);
+        switch (this.app.getModule("disk").mode) {
+            case MODE_WRITE:
+                this.modeWrite.handleGridClick(cellIndex);
+                break;
+            case MODE_ARRANGE:
+                this.modeArrange.handleGridCellClick(event);
+                break;
+            default:
+                console.warn("Unhandled mode:", this.app.mode);
+        }
     }
-  }
+}
+  
+  handleGridKeyup(event) {
+    console.log("Detected keyup in grid");
+    const cellElement = event.target.closest(".grid-cell");
+    if (!cellElement) return; // Ignore clicks outside cells
+
+    const cellIndex = cellElement.dataset.index;
+    
+    if (cellIndex) {
+        console.log(`Grid cell ${cellIndex} keyup`);
+        switch (this.app.getModule("disk").mode) {
+            case MODE_WRITE:
+                this.modeWrite.handleGridKeyup(cellIndex);
+                break;
+            case MODE_ARRANGE:
+                console.log("keyup ignored in mode arrange");
+                break;
+            default:
+                console.warn("Unhandled mode:", this.app.mode);
+        }
+    }
+}
 
   handleMarkerClick(event, markerType) {
     const markerClass = `${markerType}-marker`;
@@ -153,4 +193,40 @@ class GridViewModule extends Module {
       }
     }
    }
+  getWord() {
+    const cell = this.cells[this.app.getModule("disk").currentCell];
+    console.log("current cell: " + cell);
+    return cell.gridCell.textContent; // Return the current cell's content
+}
+
+setCellSyllable(index, syllable) {
+    const cell = this.cells[index];
+    cell.syllable = syllable; // Update the internal syllable property
+}
+
+getCurrentCellSyllable(){
+    return this.cells[this.currentCell]?.syllable || "";
+}
+
+moveToNextCell() {
+    this.currentCell++;
+    if (this.currentCell >= this.cells.length) {
+        this.currentCell = 0; // Loop back to the first cell
+    }
+    this.focusCurrentCell();
+}
+
+moveToPreviousCell() {
+    this.currentCell--;
+    if (this.currentCell < 0) {
+        this.currentCell = this.cells.length - 1; // Loop back to the last cell
+    }
+    this.focusCurrentCell();
+}
+
+moveToNextRow() {
+    const nextRow = Math.floor(this.currentCell / 16) + 1;
+    this.currentCell = nextRow * 16;
+}
+  
 }

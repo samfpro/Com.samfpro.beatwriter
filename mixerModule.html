@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="CONTENT-TYPE" content="text/html; charset=UTF-8">
+  <title>Mixer Module</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+ <div class="mixer"> 
+   <div class="channel-container">
+     <div class="slider-label label">Beat Track</div>
+     <div class="slider-container"> 
+          <input type="range" id="slider-1" min = "0" max = "1" value=".5" step=".05" class="mirror-inset slider" orient="vertical">
+         <div class="channel-buttons">
+           <div id="mute-ch-1" class="mute outset mixer-button">M</div>
+           <div id="solo-ch-1" class="solo outset mixer-button">S</div>
+         </div>
+     </div>    
+   </div>
+   <div class="channel-container">
+     <div class="slider-label label">TTS Voice</div>
+     <div class="slider-container">
+         <input type="range" id="slider-2" min = "0" max = "1" value=".5" step=".05" class="mirror-inset slider" orient="vertical">
+           <div class="channel-buttons">
+              <div id="mute-ch-2" class="mute outset mixer-button">M</div>
+              <div id="solo-ch-2" class="solo outset mixer-button">S</div>
+           </div>
+      </div> 
+   </div> 
+   <div class="channel-container">
+     <div class="label slider-label">Metronome</div>
+     <div class="slider-container">
+        <input type="range" id="slider-3" min = "0" max = "1" value=".5" step=".05" class="mirror-inset slider" orient="vertical">
+           <div class="channel-buttons">
+              <div id="mute-ch-3" class="mute outset mixer-button">M</div>
+              <div id="solo-ch-3" class="solo outset mixer-button">S</div>
+           </div>
+      </div>  
+   </div> 
+   <div class="channel-container">
+     <div class="slider-label label">Master</div>
+     <div class="slider-container">
+         <input type="range" id="slider-4" min = "0" max = "1" value=".5" step=".05" class="mirror-inset slider" orient="vertical">
+             <div class="channel-buttons">
+              <div id="mute-ch-4" class="mute outset mixer-button">M</div>
+              <div id="solo-ch-4" class="solo outset mixer-button">S</div>
+           </div>
+      </div> 
+   </div>
+ </div>
+</body>
+</html>

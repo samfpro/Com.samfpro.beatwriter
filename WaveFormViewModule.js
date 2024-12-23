@@ -8,6 +8,7 @@ class WaveFormViewModule extends Module {
     this.regionCtx = null;
     this.audioFile = null;
     this.audioDurationInSeconds = 25;
+    this.waveFormDrawn = false;
 
     // Use AudioContext from the app instance
     this.ac = app.ac;
@@ -39,7 +40,7 @@ class WaveFormViewModule extends Module {
     this.regionCtx = this.regionCanvas.getContext("2d");
   }
 
-  updateWaveForm(audioFileUrl) {
+  async updateWaveForm(audioFileUrl, start, end, bpm, leadIn) {
     console.log("updateWaveform() called.");
 
     this.audioFileUrl = audioFileUrl;
@@ -89,6 +90,9 @@ class WaveFormViewModule extends Module {
               x += 1;
             }
             this.waveformCtx.stroke();
+            this.waveFormDrawn = true;
+            console.log("markerParams: " + start + end + bpm + leadIn);
+            this.updateMarkers(start, end, bpm, leadIn);
           },
           (error) => {
             console.error("Error decoding audio data:", error);
@@ -115,6 +119,9 @@ class WaveFormViewModule extends Module {
     }else if (!bpm) {
       console.error("BPM is missing.");
       return;
+    }else if (!this.waveFormDrawn){
+      console.log("awaiting waveform");
+      return;
     }
 
     const canvasWidth = this.regionCanvas.width;
@@ -128,7 +135,7 @@ class WaveFormViewModule extends Module {
     const xOffset = (startPositionPercentage / 100) * canvasWidth;
 
     const xStart = xOffset + (startPoint / barsToDisplay) * totalRegionWidth;
-    const xEnd = xOffset + (endPoint / barsToDisplay) * totalRegionWidth;
+    const xEnd = xOffset + ((endPoint + 1) / barsToDisplay) * totalRegionWidth;
 
     this.regionCtx.clearRect(0, 0, canvasWidth, this.regionCanvas.height);
 

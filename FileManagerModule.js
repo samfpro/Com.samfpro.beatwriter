@@ -2,13 +2,12 @@ class FileManagerModule extends Module {
   constructor(app, titleText, styleName, htmlFile, parentElement) {
     super(app, titleText, styleName, htmlFile, parentElement);
     
-  
     this.projectNameInput = null;
     this.saveButton = null;
     this.loadButton = null;
     this.newButton = null;
   }
-  
+
   setupDOM() {
     super.setupDOM();
 
@@ -24,7 +23,7 @@ class FileManagerModule extends Module {
     if (!this.loadButton) console.warn("Load Button not found.");
     if (!this.newButton) console.warn("New Button not found.");
 
-    // Set up event listeners if elements exist
+    // Set up event listeners
     this.projectNameInput?.addEventListener("input", (event) => {
       const diskModule = this.app.getModule("disk");
       if (diskModule) {
@@ -39,42 +38,85 @@ class FileManagerModule extends Module {
     this.newButton?.addEventListener("click", () => this.createNewProject());
   }
 
-  // Save the current project
   saveProject() {
     const diskModule = this.app.getModule("disk");
-    if (diskModule) {
+    const gridViewModule = this.app.getModule("gridView");
+
+    if (diskModule && gridViewModule) {
       console.log(`Saving project: ${diskModule.projectName}`);
-      // Add save functionality here
+      const saveData = {
+        projectName: diskModule.projectName,
+        projectUrl: diskModule.projectUrl,
+        beatTrackUrl: diskModule.beatTrackUrl,
+        BPM: diskModule.BPM,
+        startMarkerPosition: diskModule.startMarkerPosition,
+        endMarkerPosition: diskModule.endMarkerPosition,
+        mode: diskModule.mode,
+        cells: gridViewModule.cells.map(cell => cell.toJSON()), // Assuming Cell class has a `toJSON` method
+      };
+
+      const saveDataString = JSON.stringify(saveData);
+
+      if (window.Android) {
+        window.Android.saveFile("fileManagerModuleSave"); 
+      } else {
+        console.warn("Save functionality is not available in this environment.");
+      }
     } else {
-      console.warn("DiskModule is not available to save the project.");
+      console.warn("Modules not available to save the project.");
     }
   }
 
-  // Create a new project
+  openFilePicker() {
+    if (window.Android) {
+      window.Android.openFilePicker("fileManagerModuleLoad");
+    } else {
+      console.warn("Load functionality is not available in this environment.");
+    }
+  }
+
+  // Method to handle the loaded file and load data into the app
+  handleLoadedFile(fileData) {
+    try {
+      const parsedData = JSON.parse(fileData);
+      this.loadProject(parsedData);
+      alert("Project loaded successfully!");
+    } catch (error) {
+      console.error("Error parsing loaded file: ", error);
+      alert("Failed to load the project.");
+    }
+  }
+
+  loadProject(parsedData) {
+    const diskModule = this.app.getModule("disk");
+    const gridViewModule = this.app.getModule("gridView");
+
+    if (diskModule && parsedData) {
+      diskModule.projectName = parsedData.projectName || "Untitled Project";
+      diskModule.projectUrl = parsedData.projectUrl;
+      diskModule.beatTrackUrl = parsedData.beatTrackUrl;
+      diskModule.BPM = parsedData.BPM;
+      diskModule.startMarkerPosition = parsedData.startMarkerPosition;
+      diskModule.endMarkerPosition = parsedData.endMarkerPosition;
+      diskModule.mode = parsedData.mode;
+
+      // Assuming that parsedData.cells is an array of cell data
+      if (gridViewModule) {
+        gridViewModule.loadCells(parsedData.cells);
+      }
+    }
+  }
+
   createNewProject() {
     const diskModule = this.app.getModule("disk");
-    if (diskModule) {
+    const gridViewModule = this.app.getModule("gridView");
+
+    if (diskModule && gridViewModule) {
       console.log("Creating a new project.");
       diskModule.projectName = "Untitled Project";
       diskModule.projectUrl = "";
-      diskModule.beatTrackUrl = "beatTrack/Turtletuck_83BPM.mp3";
-      diskModule.BPM = 120;
-      diskModule.startMarkerPosition = 0;
-      diskModule.endMarkerPosition = 0;
-      diskModule.currentCell = null;
-      diskModule.mode = "default";
-      diskModule.updatePropertiesDisplay();
-    } else {
-      console.warn("DiskModule is not available to create a new project.");
-    }
-  }
-
-  // Open the file picker
-  openFilePicker() {
-    if (window.Android) {
-      window.Android.showFilePicker("application/json", "fileManagerModule");
-    } else {
-      console.warn("File picker not available in this environment.");
+      diskModule.beatTrackUrl = "";
+      gridViewModule.resetCells();
     }
   }
 }

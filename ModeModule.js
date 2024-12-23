@@ -36,13 +36,12 @@ class ModeModule extends Module {
   
   toggleLights(mode) {
     // Reset previous mode light
-    this.modeLights[this.previousMode]?.classList.remove("mode-light-active");
+    this.modeLights[this.previousMode]?.classList.remove("light-active");
 
     // Activate current mode light
-    this.modeLights[mode]?.classList.add("mode-light-active");
+    this.modeLights[mode]?.classList.add("light-active");
 
     // Reset branch lights
-    Object.values(this.branchLights).forEach(light => light.classList.remove("active"));
 
     // Activate appropriate branch light
     if (mode === MODE_WRITE){

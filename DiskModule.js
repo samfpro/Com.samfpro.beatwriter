@@ -6,28 +6,26 @@ class DiskModule extends Module {
     // Initialize default values for properties
     this._projectName = "";
     this._projectUrl = "";
-    this._beatTrackUrl = ""; 
-    this._beatTrackLeadInBars = 0;
-    this._startMarkerPosition = 0;
-    this._endMarkerPosition = 0;
+    this._beatTrackUrl = "";
+    this._startMarkerPosition = 1;
+    this._endMarkerPosition = 4;
     this._currentCell = null;
     this._mode = MODE_WRITE;
     console.log("MODE_WRITE: " + MODE_WRITE);   // Default mode, can be updated later
     this.propertiesDisplay= null;
     this.ac = app.ac;
-    this.cells = [];
         // Initialize the beatTrackParameterValues array
     this.beatTrackParameterValues = [
-      new ParameterValue("LeadInMS", "LIMS", 0, 10000, 0, "number"),
-      new ParameterValue("LeadInBars", "LIBR", 0, 64, 0, "number"),
-      new ParameterValue("PlayRate", "PLRT", 0, 300, 100, "number"),
+      new ParameterValue("LeadInMS", "OFSTMS", 0, 10000, 0, "number"),
+      new ParameterValue("LeadInBars", "OFSTBR", 0, 64, 0, "number"),
+      new ParameterValue("PlayRate", "PLAYRT", 0, 300, 100, "number"),
     ];
 
     // Initialize the playParameterValues array
     this.playParameterValues = [
       new ParameterValue("BPM", "MBPM", 0, 240, 120, "number"),
-      new ParameterValue("TtsRate", "TTSR", 1, 4, 3, "number"),
-      new ParameterValue("TtsVoice", "TTSV", 1, 27, 4, "number"),
+      new ParameterValue("TtsVoice", "TTSV", 1, 27, 3, "number"),
+      new ParameterValue("TtsRate", "TTSR", 1, 4, 4, "number"),
     ];
   }
 
@@ -48,20 +46,25 @@ class DiskModule extends Module {
     this.propertiesDisplay = this.moduleContent.querySelector("#properties-display");
     if (this.propertiesDisplay) {
       console.log("propertiesDisplay successfully initialized.");
+      this.playParameterValues[0].currentValue = 83;
       this.beatTrackUrl = "beatTrack/Turtletuck_83BPM.mp3";
-      this.BPM = 83;
       console.log("setting mode");
       this.mode = MODE_WRITE;
+      this.propertiesDisplay.addEventListener("touchmove", (event) => {
+        event.stopPropagation();
+      })
       
     } else {
       console.error("propertiesDisplay element is not available.");
     }
-    this.app.getModule("gridView").generateGrid(this.cells);
+    this.app.getModule("gridView").generateGrid();
     this.app.getModule("beatTrack").loadValueSelector();
-     this.app.getModule("playParameters").loadValueSelector();
+    this.app.getModule("playParameters").loadValueSelector();
  
-    this.startMarkerPosition = 0;
+    this.projectName = "<untitled>";
+    this.startMarkerPosition = 1;
     this.endMarkerPosition = 4;
+    this.currentCell = 16;
     this.updatePropertiesDisplay();
   }
 
@@ -117,6 +120,8 @@ class DiskModule extends Module {
 
   set projectName(value) {
     this._projectName = value;
+    const fileManagerModule = this.app.getModule("fileManager");
+    fileManagerModule.projectNameInput.textContent = value;
     this.updatePropertiesDisplay();
   }
 
@@ -140,22 +145,41 @@ class DiskModule extends Module {
     if (beatTrackNameDisplay){
        beatTrackNameDisplay.textContent = value;
     }
-    const waveFormViewModule = this.app.getModule("waveFormView");
+    this.drawWave(value);
+    this.updatePropertiesDisplay();
+    
+  }
+  
+  async drawWave(value){
+     const waveFormViewModule = this.app.getModule("waveFormView");
     if (waveFormViewModule){
-      waveFormViewModule.updateWaveForm(value);
-      this.updatePropertiesDisplay();
-    }
+      waveFormViewModule.updateWaveForm(value, this.startMarkerPosition, this.endMarkerPosition, this.BPM, this.beatTrackParameterValues[1].currentValue);
+      console.log("waveViewMarkersParameters: " + this.startMarkerPosition + this.endMarkerPosition + this.BPM + this.beatTrackParameterValues[1].currentValue);
+    }   
   }
 
   get BPM() {
-    return this._BPM;
+    return this.playParameterValues[0].currentValue;
   }
 
   set BPM(value) {
-    this._BPM = value;
+    this.playParameterValues[0].currentValue = value;
     const waveFormViewModule = this.app.getModule("waveFormView");
     if (waveFormViewModule) {
-      waveFormViewModule.updateMarkers(this.startMarkerPosition, this.endMarkerPosition, this._BPM, this.beatTrackLeadInBars);
+      waveFormViewModule.updateMarkers(this.startMarkerPosition, this.endMarkerPosition, this.BPM, this.beatTrackParameterValues[1].currentValue);
+    }
+    this.updatePropertiesDisplay();
+  }
+  
+  get beatTrackParameterValues[1].currentValue(){
+    return this.beatTrackParameterValues[1];
+  }
+  
+  set beatTrackParameterValues[1].currentValue(value){
+    this.beatTrackParameterValues[1] = value;
+    const waveFormViewModule = this.app.getModule("waveFormView");
+    if (waveFormViewModule) {
+      waveFormViewModule.updateMarkers(this.startMarkerPosition, this.endMarkerPosition, this.BPM, this.beatTrackParameterValues[1].currentValue);
     }
     this.updatePropertiesDisplay();
   }
@@ -172,7 +196,7 @@ class DiskModule extends Module {
 
         // Call the GridView update for start marker
         this.app.getModule("gridView").updateMarker("start", this._startMarkerPosition, this._startMarkerPosition, this._endMarkerPosition);
-        this.app.getModule("waveFormView").updateMarkers(this._startMarkerPosition, this._endMarkerPosition, this._BPM, this._beatTrackLeadInBars);
+        this.app.getModule("waveFormView").updateMarkers(this._startMarkerPosition, this._endMarkerPosition, this.BPM, this.beatTrackParameterValues[1].currentValue);
 
 
         // Update properties display
@@ -191,7 +215,7 @@ class DiskModule extends Module {
 
         // Call the GridView update for end marker
         this.app.getModule("gridView").updateMarker("end", this._endMarkerPosition, this._startMarkerPosition, this._endMarkerPosition);
-        this.app.getModule("waveFormView").updateMarkers(this._startMarkerPosition, this._endMarkerPosition, this._BPM, this._beatTrackLeadInBars);
+        this.app.getModule("waveFormView").updateMarkers(this._startMarkerPosition, this._endMarkerPosition, this.BPM, this.beatTrackParameterValues[1].currentValue);
         // Update properties display
         this.updatePropertiesDisplay();
     }
@@ -218,11 +242,31 @@ class DiskModule extends Module {
     return this._mode;
   }
 
-  set mode(value) {
-    this._mode = value;
-    const modeModule = this.app.getModule("modeSelector");
+set mode(value) {
+  this._mode = value;
+
+  // Get mode module and ensure it's valid
+  const modeModule = this.app.getModule("mode");
+  if (modeModule && typeof modeModule.toggleLights === "function") {
     modeModule.toggleLights(value);
-    console.log("set mode to " + value);
-    this.updatePropertiesDisplay();
+  } else {
+    console.error("Mode module or toggleLights function not found.");
   }
+
+  // Get grid module and update cell modes
+  const grid = this.app.getModule("gridView");
+  if (grid && Array.isArray(grid.cells)) {
+    grid.cells.forEach((cell) => {
+      if (cell) {
+        cell.mode = value;
+      }
+    });
+  } else {
+    console.error("Grid module or cells array not found.");
+  }
+
+  console.log("Set mode to " + value);
+  this.updatePropertiesDisplay();
 }
+}
+

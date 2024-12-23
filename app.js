@@ -33,16 +33,6 @@ class App {
         ]
       },
       {
-        name: "waveFormView",
-        class: WaveFormViewModule,
-        args: [
-          "Wave Form View",
-          "wave-form-view-module",
-          "html/waveFormViewModule.html", // Updated path
-          document.getElementById("cp-wave-form-view")
-        ]
-      },
-      {
         name: "gridView",
         class: GridViewModule,
         args: [
@@ -53,26 +43,16 @@ class App {
         ]
       },
       {
-        name: "modeSelector",
+        name: "mode",
         class: ModeModule,
         args: [
-          "Mode Selector",
+          "Mode",
           "mode-module",
           "html/modeModule.html", // Updated path
           document.getElementById("cp-bottom-row")
         ]
       },
-      {
-        name: "transport",
-        class: ModeModule,
-        args: [
-          "Transport",
-          "transport-module",
-          "html/transportModule.html", // Updated path
-          document.getElementById("cp-bottom-row")
-        ]
-      },
-      {
+  {
         name: "playParameters",
         class: PlayParametersModule,
         args: [
@@ -80,6 +60,36 @@ class App {
           "play-parameters-module",
           "html/playParametersModule.html", // Updated path
           document.getElementById("cp-bottom-row")
+        ]
+      },
+          {
+        name: "transport",
+        class: TransportModule,
+        args: [
+          "Transport",
+          "transport-module",
+          "html/transportModule.html", // Updated path
+          document.getElementById("cp-bottom-row")
+        ]
+      },
+           {
+        name: "mixer",
+        class: MixerModule,
+        args: [
+          "Mixer",
+          "mixer-module",
+          "html/mixerModule.html", // Updated path
+          document.getElementById("cp-bottom-row")
+        ]
+      },
+    {
+        name: "waveFormView",
+        class: WaveFormViewModule,
+        args: [
+          "Wave Form View",
+          "wave-form-view-module",
+          "html/waveFormViewModule.html", // Updated path
+          document.getElementById("cp-wave-form-view")
         ]
       },
       {
