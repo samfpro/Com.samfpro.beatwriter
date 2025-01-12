@@ -9,6 +9,10 @@ class WaveFormViewModule extends Module {
     this.audioFile = null;
     this.audioDurationInSeconds = 25;
     this.waveFormDrawn = false;
+    
+    this.cursorCanvas = null; // New canvas for the cursor
+    this.cursorCtx = null; // Context for the cursor canvas
+
 
     // Use AudioContext from the app instance
     this.ac = app.ac;
@@ -31,13 +35,18 @@ class WaveFormViewModule extends Module {
     this.regionCanvas = document.createElement("canvas");
     this.regionCanvas.id = "region-canvas";
 
+    this.cursorCanvas = document.createElement("canvas"); // Add cursor canvas
+    this.cursorCanvas.id = "cursor-canvas";
+    
     // Append canvases to the waveFormViewDisplay
     this.waveFormViewDisplay.appendChild(this.waveformCanvas);
     this.waveFormViewDisplay.appendChild(this.regionCanvas);
-
+    this.waveFormViewDisplay.appendChild(this.cursorCanvas); // Append cursor canvas
     // Get 2D contexts for both canvases
     this.waveformCtx = this.waveformCanvas.getContext("2d");
     this.regionCtx = this.regionCanvas.getContext("2d");
+    this.cursorCtx = this.cursorCanvas.getContext("2d"); // Context for cursor
+
   }
 
   async updateWaveForm(audioFileUrl, start, end, bpm, leadIn) {
@@ -147,4 +156,8 @@ class WaveFormViewModule extends Module {
     this.regionCtx.fillStyle = "rgba(255, 255, 255, 0.5)";
     this.regionCtx.fillRect(xStart, 0, xEnd - xStart, this.regionCanvas.height);
   }
+  showPlaybackCursor() {
+    
+  }
+
 }

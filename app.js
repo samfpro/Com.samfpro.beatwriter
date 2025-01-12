@@ -99,7 +99,7 @@ class App {
           "Disk",
           "disk-module",
           "html/diskModule.html", // Updated path
-          document.getElementById("cp-top-row")
+          document.getElementById("cp-bottom-row")
         ]
       }
     ];

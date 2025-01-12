@@ -23,9 +23,9 @@ class TransportModule extends Module {
     this.mediaRecorder = null;
     this.scheduledNodes = []; // Array to keep track of scheduled nodes
     this.cursorTimeouts = []; // Array to keep track of cursor update timeouts
-    
+    this.analyzers = []; // Array to store AnalyserNodes
+    this.gains = []; // Array to store channel gains
   }
-  
   
   setupDOM() {
     super.setupDOM();
@@ -47,13 +47,24 @@ class TransportModule extends Module {
     
 
   async start() {
-    console.log("starting playback");
-    let mode = this.app.getModule("disk").mode;
-    this.previousMode = mode;
-    mode = MODE_PLAY;
-    await this.resumeAudioContext();
-    await this.schedulePlayback();
+  console.log("starting playback");
+  this.playButton.classList.add("active");
+  let mode = this.app.getModule("disk").mode;
+  this.previousMode = mode;
+  mode = MODE_PLAY;
+
+  await this.resumeAudioContext();
+
+  // Ensure the beat track buffer is ready before scheduling playback
+  try {
+    const beatTrackNode = await this.createBeatTrack(); // Ensure buffer is loaded
+    await this.schedulePlayback(beatTrackNode); // Pass the node to schedulePlayback
+  } catch (error) {
+    console.error("Error starting playback:", error);
+    alert("Failed to start playback. Please try again.");
   }
+}
+
 
   async resumeAudioContext() {
     if (this.ac.state === "suspended") {
@@ -86,63 +97,117 @@ class TransportModule extends Module {
     this.ttsGain.gain.setValueAtTime(1, this.ac.currentTime);
     this.beatTrackGain.gain.setValueAtTime(0.5, this.ac.currentTime);
     this.masterGain.gain.setValueAtTime(1, this.ac.currentTime);
+    this.gains.push(this.beatTrackGain);
+    this.gains.push(this.ttsGain);
+    this.gains.push(this.metronomeGain);
+    this.gains.push(this.masterGain);
+    for (let i = 0; i < 4; i++) {
+      const gain = this.gains[i];
+      const analyzer = this.ac.createAnalyser();
+      
+      gain.connect(analyzer); // Connect gain to analyzer
+     // analyzer.connect(this.masterGain); // Connect analyzer to the master output
+
+      
+      this.analyzers.push(analyzer);
+      
+      // Optional: Set analyzer properties for better visualization
+      analyzer.fftSize = 256;
+      analyzer.smoothingTimeConstant = 0.85;
+    }
+
+    // Connect master gain to destination
+    this.masterGain.connect(this.ac.destination);
+    this.masterGain.gain.setValueAtTime(.8, this.ac.currentTime);
+  }
+  
+  
+ async schedulePlayback(beatTrackNode) {
+  console.log("scheduling playback");
+
+  const diskModule = this.app.getModule("disk");
+  const leadInMS = diskModule.beatTrackParameterValues[0].currentValue;
+  const leadInBars = diskModule.beatTrackParameterValues[1].currentValue;
+  const bpm = diskModule.playParameterValues[0].currentValue;
+  const cells = this.app.getModule("gridView").cells;
+  const startPos = diskModule.startMarkerPosition * 16;
+  const endPos = (diskModule.endMarkerPosition * 16) + 16;
+  const stepsToPlay = endPos - startPos;
+
+  console.log("The number of steps to play is: " + stepsToPlay);
+
+  this.stepDuration = 60 / (bpm * 4);
+  this.playbackDuration = stepsToPlay * this.stepDuration;
+
+  const startTime = this.ac.currentTime + (4 * this.stepDuration); // Ensure proper lead-in time
+  const endTime = startTime + this.playbackDuration;
+
+  this.hideCursor(endPos, endTime);
+
+  let beatTrackOffsetS = 0;
+  if (startPos !== 0 || leadInBars !== 0) {
+    beatTrackOffsetS = (startPos + (leadInBars * 16)) * this.stepDuration;
+  }
+  
+  if (leadInMS.currentValue !== 0) {
+    beatTrackOffsetS += leadInMS / 1000;
   }
 
-  async schedulePlayback() {
-    console.log("scheduling playback");
-    const diskModule = this.app.getModule("disk");
-    const leadInMS = diskModule.beatTrackParameterValues[0].currentValue;
-    const leadInBars = diskModule.beatTrackParameterValues[1].currentValue;
-    const bpm = diskModule.playParameterValues[0].currentValue;
-    const cells = this.app.getModule("gridView").cells;
-    const startPos = diskModule.startMarkerPosition * 16;
-    const endPos = (diskModule.endMarkerPosition *16) + 16;
-    const stepsToPlay = endPos - startPos;
-    console.log("the number of steps to play is: " + stepsToPlay);
- 
-    this.stepDuration = 60 / (bpm * 4);
-    this.playbackDuration = stepsToPlay * this.stepDuration;
+  const beatTrackStartTime = startTime;
 
-    let startTime = this.ac.currentTime + (4 * this.stepDuration);
-    let endTime = startTime + this.playbackDuration;
-    this.hideCursor(endPos, endTime);
-    let beatTrackOffsetS = 0;
-    if (startPos !== 0 ||  leadInBars !== 0) {
-      beatTrackOffsetS = (startPos + (leadInBars * 16)) * this.stepDuration;
-    }
-    if (leadInMS.currentValue !== 0) {
-      beatTrackOffsetS += leadInMS / 1000;
-    }
+  // Schedule Beat Track Playback
+  await this.scheduleBeatTrack(beatTrackNode, beatTrackStartTime, beatTrackOffsetS);
 
-    let beatTrackStartTime = startTime;
-    if (startPos === 0 && leadInBars === 0) {
-      beatTrackStartTime = startTime;
-    }
+  // Schedule Steps Playback
+  for (let step = startPos; step <= endPos; step++) {
+    const time = startTime + (step - startPos) * this.stepDuration;
 
-    const beatTrackNode = await this.createBeatTrack();
-    await this.scheduleBeatTrack(beatTrackNode, beatTrackStartTime, beatTrackOffsetS);
-
-    for (let step = startPos; step <= endPos; step++) {
-      const time = startTime + (step - startPos) * this.stepDuration;
-
-      if (step >= 0 && step < this.app.getModule("gridView").cells.length) {
-        
-          if ((step + 2) % 2 === 0) {
-            this.scheduleOsc(this.sineNodes[step], "sine", this.sineGain, time);
-          }
-          if ((step + 4) % 8 === 0) {
-            this.scheduleOsc(this.sawNodes[step], "saw", this.sawGain, time);
-          }
-        
-        if (cells[step].syllable !== "") {
-          this.scheduleTts(time, cells[step].syllable);
-        }
-          this.showCursor(step, time);
-      } else {
-        console.error("Attempted to access step out of bounds: " + step);
+    if (step >= 0 && step < cells.length) {
+      if ((step + 2) % 2 === 0) {
+        this.scheduleOsc(this.sineNodes[step], "sine", this.sineGain, time);
       }
+      if ((step + 4) % 8 === 0) {
+        this.scheduleOsc(this.sawNodes[step], "saw", this.sawGain, time);
+      }
+
+      if (cells[step].syllable !== "") {
+        this.scheduleTts(time, cells[step].syllable);
+      }
+
+      this.showCursor(step, time);
+    } else {
+      console.error("Attempted to access step out of bounds: " + step);
     }
   }
+
+  // Schedule stopSequencer to execute at endTime
+  setTimeout(() => {
+    this.stopSequencer();
+  }, (endTime - this.ac.currentTime) * 1000);
+}
+
+async stopSequencer() {
+  console.log("Stopping sequencer...");
+
+  // Stop all scheduled nodes
+  this.scheduledNodes.forEach(node => {
+    try {
+      node.stop();
+    } catch (e) {
+      console.error("Error stopping node: " + e);
+    }
+  });
+  this.scheduledNodes = []; // Clear the array
+
+  // Clear cursor timeouts
+  this.cursorTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
+  this.cursorTimeouts = []; // Clear the array
+  const cells = this.app.getModule("gridView").cells;
+  cells.forEach(cell => {
+    cell.stepPlaying = false;
+  });
+  this.playButton.classList.remove("active");
+}
 
   async scheduleOsc(node, type, gainNode, time) {
     node = this.ac.createOscillator();
@@ -158,52 +223,61 @@ class TransportModule extends Module {
     console.log(`Scheduled ${type} oscillator at ${time}s.`);
   }
 
-  async createBeatTrack() {
-    const diskModule = this.app.getModule("disk");
-    try {
+async createBeatTrack() {
+  const diskModule = this.app.getModule("disk");
+  
+  return new Promise((resolve, reject) => {
     console.log("creating beatTrackNode");
-    let beatTrackNode = this.ac.createBufferSource();
 
-    if (this.beatTrackBuffer == null) {
-      console.log("this.beatTrackBuffer is null");
-
-      const request = new XMLHttpRequest();
-      request.open("GET", diskModule.beatTrackUrl, true);
-      request.responseType = "arraybuffer";
-
-      request.onload = () => {
-        if (request.status >= 200 && request.status < 300) {
-          console.log("decoding arrayBuffer");
-          this.ac.decodeAudioData(request.response, (buffer) => {
-            this.beatTrackBuffer = buffer;
-            console.log("Audio data decoded successfully.");
-          }, (decodeError) => {
-            console.error("Error decoding audio data:", decodeError);
-          });
-        } else {
-          console.error("Failed to fetch audio data. Status:", request.status);
-        }
-      };
-
-      request.onerror = () => {
-        console.error("Network error while fetching audio data.");
-      };
-
-      request.send();
-    }
-
+    // If buffer already exists, create and return node immediately
     if (this.beatTrackBuffer != null) {
-      console.log("ok the buffer no nullman");
+      const beatTrackNode = this.ac.createBufferSource();
       beatTrackNode.buffer = this.beatTrackBuffer;
       beatTrackNode.connect(this.beatTrackGain);
-      console.log("beatTrackNode is connected to this.beatTrackGain");
+      return resolve(beatTrackNode);
     }
 
-    return beatTrackNode;
-  } catch (error) {
-    console.error("Error loading beat track:", error);
-  }
+    // If buffer doesn't exist, load it
+    const request = new XMLHttpRequest();
+    request.open("GET", diskModule.beatTrackUrl, true);
+    request.responseType = "arraybuffer";
+
+    request.onload = () => {
+      if (request.status >= 200 && request.status < 300) {
+        this.ac.decodeAudioData(
+          request.response,
+          (buffer) => {
+            console.log("Audio data decoded successfully.");
+            this.beatTrackBuffer = buffer;
+
+            const beatTrackNode = this.ac.createBufferSource();
+            beatTrackNode.buffer = buffer;
+            beatTrackNode.connect(this.beatTrackGain);
+            resolve(beatTrackNode);
+          },
+          (decodeError) => {
+            console.error("Error decoding audio data:", decodeError);
+            reject(decodeError);
+          }
+        );
+      } else {
+        console.error("Failed to fetch audio data. Status:", request.status);
+        reject(new Error(`Failed to load beat track: ${request.status}`));
+      }
+    };
+
+    request.onerror = () => {
+      console.error("Network error while fetching audio data.");
+      reject(new Error("Network error loading beat track"));
+    };
+
+    request.send();
+  });
 }
+
+
+
+
   
   async scheduleBeatTrack(node, time, offset) {
     console.log("scheduling....and the node is " + node + "and the time is " + time + "and the offset is " + offset);
@@ -286,32 +360,6 @@ class TransportModule extends Module {
     this.cursorTimeouts.push(timeoutId); // Keep track of the timeout
   } // Adjusted timeout based on sequencer time
 
-  async stopSequencer() {
-    const cells = this.app.getModule("gridView").cells;
-    const diskModule = this.app.getModule("disk");
-    console.log("Stopping sequencer...");
-    // Stop all scheduled nodes
-    this.scheduledNodes.forEach(node => {
-      try {
-        node.stop();
-      } catch (e) {
-        console.error("Error stopping node: " + e);
-      }
-    });
-    this.scheduledNodes = []; // Clear the array
-
-    // Clear cursor timeouts
-    this.cursorTimeouts.forEach(timeoutId => clearTimeout(timeoutId));
-    this.cursorTimeouts = []; // Clear the array
-
-    // Reset cursor position
-    cells.forEach(cell => cell.stepPlaying = false);
-
-    // Reset the mode
-    diskModule.mode = this.previousMode;
-    console.log("Sequencer stopped and cursor reset.");
-  }
-
   // Add a method to update channel gains
   setGainForChannel(channelIndex, gainValue) {
     switch (channelIndex) {
@@ -343,6 +391,3 @@ class TransportModule extends Module {
 // modePlay.start();
 // modePlay.stopSequencer();
   
-
-
-

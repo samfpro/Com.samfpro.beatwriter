@@ -1,15 +1,37 @@
 const VALUE_SELECTOR_URL = "html/valueSelector.html";
 
 class ParameterValue {
-  constructor(propertyName, labelAbbv, minValue, maxValue, initialValue, dataType) {
+  constructor(propertyName, labelAbbv, minValue, maxValue, initialValue, dataType, onChangeCallback = null) {
     this.propertyName = propertyName;
     this.labelAbbv = labelAbbv;
     this.minValue = minValue;
     this.maxValue = maxValue;
-    this.currentValue = initialValue;
+    this._currentValue = initialValue; // Use a private variable for the current value
     this.dataType = dataType;
+    this.onChangeCallback = onChangeCallback; // Function to execute on value change
+  }
+
+  // Getter for currentValue
+  get currentValue() {
+    return this._currentValue;
+  }
+
+  // Setter for currentValue
+  set currentValue(newValue) {
+  if (newValue < this.minValue || newValue > this.maxValue) {
+    throw new Error(`Value must be between ${this.minValue} and ${this.maxValue}`);
+  }
+
+  this._currentValue = newValue; // Store old value for comparison// Update to new value
+
+  // Call the callback function if provided
+  if (this.onChangeCallback && typeof this.onChangeCallback === 'function') {
+    console.log("running callback");
+    this.onChangeCallback(); // Pass both new and old values
   }
 }
+}
+
 
 class ValueSelector {
   constructor(parentModule, parameterValues) {

@@ -4,7 +4,9 @@ class BeatTrackModule extends Module {
     super(app, titleText, styleName, htmlFile, parentElement);
     this.beatTrackNameDisplay = null;
     this.beatTrackLoadButton = null;
-    this.tryBpmButton = null;
+    this.detectBpmButton = null;
+    this.bpmMultButton = null;
+    this.bpmDivButton = null;
     this.valueSelectorContainer = null;
   }
 
@@ -16,8 +18,12 @@ class BeatTrackModule extends Module {
     this.moduleContent.id = "beat-track-module-content";
     this.beatTrackNameDisplay = this.moduleContent.querySelector("#beat-track-name-display");
     this.beatTrackLoadButton = this.moduleContent.querySelector("#beat-track-load-button");
-    this.tryBpmButton = this.moduleContent.querySelector("#try-bpm-button");
-    this.valueSelectorContainer = this.moduleContent.querySelector("#beat-track-value-selector");
+    this.detectBpmButton = this.moduleContent.querySelector("#detect-bpm-button");
+    this.detectBpmDisplay = this.moduleContent.querySelector("#detect-bpm-display");
+    this.bpmMultButton = this.moduleContent.querySelector("#bpm-mult-button");
+    this.bpmDivButton = this.moduleContent.querySelector("#bpm-div-button");
+    this.bpmCommitButton = this.moduleContent.querySelector("#commit-bpm-button");
+    this.valueSelectorContainer = this.moduleContent.querySelector("#be-track-value-selector");
         console.log("beatTrackNameDisplay: " + this.beatTrackNameDisplay);
     // Validate the presence of required elements
     if (!this.beatTrackNameDisplay) {
@@ -32,9 +38,11 @@ class BeatTrackModule extends Module {
 
     // Attach event listeners only if elements exist
     this.beatTrackLoadButton?.addEventListener("click", () => this.openFilePicker());
-    this.tryBpmButton?.addEventListener("click", () => this.handleTryBPM());
+    this.detectBpmButton?.addEventListener("click", () => this.handleTryBPM());
+    this.bpmMultButton?.addEventListener("click", () => this.handleBPMMultiply());
+    this.bpmDivButton?.addEventListener("click", () => this.handleBPMDivide());
+    this.bpmCommitButton?.addEventListener("click", () => this.handleBPMCommit());
 
-    
   }
 
   // Open the file picker via Android interface or fallback
@@ -66,10 +74,59 @@ class BeatTrackModule extends Module {
   }
 
   // Handle Try BPM button click (placeholder functionality)
-  handleTryBPM() {
+  async handleTryBPM() {
     console.log("Try BPM functionality triggered.");
-    // Placeholder for Try BPM functionality
-  }
+
+    // Fetch the beat track file URL from the DiskModule
+    const diskModule = this.app.getModule("disk");
+    if (!diskModule || !diskModule.beatTrackUrl) {
+        console.warn("No beat track URL found in DiskModule.");
+        return;
+    }
+
+    // Use XMLHttpRequest to load the audio file
+    try {
+        const audioBlob = await this._loadAudioFile(diskModule.beatTrackUrl);
+
+        // Analyze BPM using BPMDetector
+        const bpmDetector = new BPMDetector();
+        const bpm = await bpmDetector.analyzeBPM(audioBlob);
+
+        console.log(`Detected BPM: ${bpm}`);
+
+        // Update the detectBpmDisplay element with the BPM value
+        if (this.detectBpmDisplay) {
+            this.detectBpmDisplay.textContent = bpm;
+        } else {
+            console.warn("Detect BPM display element not found.");
+        }
+    } catch (error) {
+        console.error("Error analyzing BPM:", error);
+    }
+}
+
+// Helper method to load audio file using XMLHttpRequest
+_loadAudioFile(fileUrl) {
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("GET", fileUrl, true);
+        xhr.responseType = "blob"; // Request the file as a Blob
+
+        xhr.onload = function () {
+            if (xhr.status === 200) {
+                resolve(xhr.response);
+            } else {
+                reject(new Error(`Failed to load file: ${xhr.status}`));
+            }
+        };
+
+        xhr.onerror = function () {
+            reject(new Error("An error occurred during the request."));
+        };
+
+        xhr.send();
+    });
+}
   
   async loadValueSelector(){
       const htmlLoader = new HTMLFileLoader();
@@ -80,6 +137,26 @@ class BeatTrackModule extends Module {
 
   }
   
+  handleBPMMultiply(){
+    if (this.detectBpmDisplay.textContent != ""){
+      let bpm = this.detectBpmDisplay.textContent;
+      this.detectBpmDisplay.textContent = bpm*2;
+    }
+    
+  }
   
+  handleBPMDivide(){
+    if (this.detectBpmDisplay.textContent != ""){
+      let bpm = this.detectBpmDisplay.textContent;
+      this.detectBpmDisplay.textContent = bpm/2;
+    }
+  }
+  handleBPMCommit(){
+    if (this.detectBpmDisplay.textContent != ""){
+      let bpm = this.detectBpmDisplay.textContent;
+      this.app.getModule("Disk").BPM = bpm;
+    }
+    
+  }
   
 }

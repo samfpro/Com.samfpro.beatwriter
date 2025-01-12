@@ -14,20 +14,24 @@ class DiskModule extends Module {
     console.log("MODE_WRITE: " + MODE_WRITE);   // Default mode, can be updated later
     this.propertiesDisplay= null;
     this.ac = app.ac;
+    this.updateWaveFormMarkers = this.updateWaveFormMarkers.bind(this);
+    
         // Initialize the beatTrackParameterValues array
     this.beatTrackParameterValues = [
-      new ParameterValue("LeadInMS", "OFSTMS", 0, 10000, 0, "number"),
-      new ParameterValue("LeadInBars", "OFSTBR", 0, 64, 0, "number"),
-      new ParameterValue("PlayRate", "PLAYRT", 0, 300, 100, "number"),
+      new ParameterValue("LeadInMS", "OFSTMS", 0, 10000, 0, "number", this.updateWaveFormMarkers),
+      new ParameterValue("LeadInBars", "OFSTBR", 0, 64, 0, "number", this.updateWaveFormMarkers),
+      new ParameterValue("PlayRate", "PLAYRT", 0, 300, 100, "number", this.updateWaveFormMarkers),
     ];
-
+    
     // Initialize the playParameterValues array
-    this.playParameterValues = [
-      new ParameterValue("BPM", "MBPM", 0, 240, 120, "number"),
-      new ParameterValue("TtsVoice", "TTSV", 1, 27, 3, "number"),
-      new ParameterValue("TtsRate", "TTSR", 1, 4, 4, "number"),
+      this.playParameterValues = [
+      new ParameterValue("BPM", "MBPM", 0, 240, 83, "number", this.updateWaveFormMarkers),
+      new ParameterValue("TtsVoice", "TTSV", 1, 27, 3, "number", this.updateWaveFormMarkers),
+      new ParameterValue("TtsRate", "TTSR", 1, 4, 4, "number", this.updateWavwFormMarkers),
     ];
-  }
+    
+       }
+  
 
   setupDOM() {
     // Call the parent setupDOM
@@ -35,18 +39,11 @@ class DiskModule extends Module {
 
     // Move the module container in the DOM hierarchy
     const fileManagerContainer = this.app.getModule("fileManager").moduleContainer;
-    if (fileManagerContainer && this.parentElement) {
-      this.parentElement.insertBefore(this.moduleContainer, fileManagerContainer);
-      console.log("DiskModule moved before FileManagerModule in the DOM.");
-    } else {
-      console.warn("FileManagerModule or parentElement not found.");
-    }
 
     // Attempt to find the properties display element
     this.propertiesDisplay = this.moduleContent.querySelector("#properties-display");
     if (this.propertiesDisplay) {
       console.log("propertiesDisplay successfully initialized.");
-      this.playParameterValues[0].currentValue = 83;
       this.beatTrackUrl = "beatTrack/Turtletuck_83BPM.mp3";
       console.log("setting mode");
       this.mode = MODE_WRITE;
@@ -90,6 +87,15 @@ class DiskModule extends Module {
     }else{
       endMarkerPositionText = this.endMarkerPosition;
     }
+    const autoSyl = this.app.getModule("gridView").autoSyllables;
+    let autoSylText = null;
+    if(autoSyl == true){
+      autoSylText = "true";
+    }else{
+      autoSylText = "false";
+    }
+    
+    
        
     if (this.propertiesDisplay) {
       this.propertiesDisplay.innerHTML = `
@@ -103,7 +109,7 @@ class DiskModule extends Module {
         Lead In MS: ${this.beatTrackParameterValues[0].currentValue || ""} <br>
         Lead In Bars: ${this.beatTrackParameterValues[1].currentValue || ""} <br>
         Play Rate: ${this.beatTrackParameterValues[2].currentValue || ""} <br>
-        
+        Auto Syllables: ${autoSylText || ""}<br>
        
       
         Mode: ${modeText || ""}
@@ -158,25 +164,43 @@ class DiskModule extends Module {
     }   
   }
 
+  
+  
   get BPM() {
     return this.playParameterValues[0].currentValue;
   }
 
   set BPM(value) {
+    console.log("setting bpm to " + value);
     this.playParameterValues[0].currentValue = value;
+    this.handleBPMChange();
+    this.updatePropertiesDisplay();
+  }
+  
+  updateWaveFormMarkers(){
+    const wfv = this.app.getModule("waveFormView");
+    
+    wfv.updateMarkers(this.startMarkerPosition, this.endMarkerPosition, this.BPM, this.beatTrackLeadInBars);
+  }
+  
+  get beatTrackLeadInMS(){
+    return this.beatTrackParameterValues[0].currentValue;
+  }
+  
+  set beatTrackLeadInMS(value){
+    this.beatTrackParameterValues[0].currentValue = value;
     const waveFormViewModule = this.app.getModule("waveFormView");
     if (waveFormViewModule) {
       waveFormViewModule.updateMarkers(this.startMarkerPosition, this.endMarkerPosition, this.BPM, this.beatTrackParameterValues[1].currentValue);
     }
     this.updatePropertiesDisplay();
   }
-  
-  get beatTrackParameterValues[1].currentValue(){
-    return this.beatTrackParameterValues[1];
+  get beatTrackLeadInBars(){
+    return this.beatTrackParameterValues[1].currentValue;
   }
   
-  set beatTrackParameterValues[1].currentValue(value){
-    this.beatTrackParameterValues[1] = value;
+  set beatTrackLeadInBars(value){
+    this.beatTrackParameterValues[1].currentValue = value;
     const waveFormViewModule = this.app.getModule("waveFormView");
     if (waveFormViewModule) {
       waveFormViewModule.updateMarkers(this.startMarkerPosition, this.endMarkerPosition, this.BPM, this.beatTrackParameterValues[1].currentValue);
@@ -269,4 +293,3 @@ set mode(value) {
   this.updatePropertiesDisplay();
 }
 }
-

@@ -15,6 +15,12 @@ class GridViewModule extends Module {
     this.endMarkerContainer = null;
     this.rowLabelContainer = null;
     this.modeWrite = new ModeWrite(app);
+    this.modeArrange = new ModeArrange(app);
+    this.syllableSwitchContainer = null;
+    this.syllableSwitch = null;
+    this._autoSyllables = true;
+    
+    
   }
   
 
@@ -25,7 +31,17 @@ class GridViewModule extends Module {
     this.gridContainer = this.gridViewDisplay.querySelector("#grid-container");
     this.startMarkerContainer = this.gridViewDisplay.querySelector("#start-marker-container");
     this.endMarkerContainer = this.gridViewDisplay.querySelector("#end-marker-container");
-
+    this.syllableSwitchContainer = this.moduleContent.querySelector("#syllable-switch-container");
+    console.log("attempting to build syllable switch with container: " + this.syllableSwitchContainer);
+    this.syllableSwitch = new BoolSwitch(
+            this.syllableSwitchContainer,
+            this.autoSyllables, // Initial state
+            "Auto Syllables:  ",            // Label te
+            (newState) => {              // Callback for state changes
+                this.autoSyllables = newState;
+                console.log(`autoSyllables is now: ${newState}`);
+            }
+        ); 
     // Add a click listener for the entire grid container
     this.gridContainer.addEventListener("click", (event) => {
       this.handleGridCellClick(event);
@@ -41,6 +57,15 @@ class GridViewModule extends Module {
       this.handleMarkerClick(event, "end");
     });
   }
+  
+  get autoSyllables(){
+    return this._autoSyllables;
+  }
+  
+  set autoSyllables(value){
+    this._autoSyllables = value;
+    this.app.getModule("disk").updatePropertiesDisplay();
+  }  
   
   makeCellCurrent(index) {
     const gridCell = this.cells[index].gridCell;
@@ -93,7 +118,7 @@ class GridViewModule extends Module {
         this.startMarkers.push(new StartMarker(this, i).startMarkerCell);
         this.endMarkers.push(new EndMarker(this, i).endMarkerCell);
     }
-}
+  }
 
   handleGridCellClick(event) {
     console.log("Detected click in grid");
@@ -109,7 +134,7 @@ class GridViewModule extends Module {
                 this.modeWrite.handleGridClick(cellIndex);
                 break;
             case MODE_ARRANGE:
-                this.modeArrange.handleGridCellClick(event);
+                this.modeArrange.handleGridCellClick(cellIndex);
                 break;
             default:
                 console.warn("Unhandled mode:", this.app.mode);
@@ -140,6 +165,7 @@ class GridViewModule extends Module {
 }
 
   handleMarkerClick(event, markerType) {
+    console.log("detected marker click");
     const markerClass = `${markerType}-marker`;
     const markerArray = markerType === "start" ? this.startMarkers : this.endMarkers;
 
@@ -160,6 +186,7 @@ class GridViewModule extends Module {
       console.log(`No ${markerType} marker found for the clicked element.`);
     }
   }
+
 
   updateMarker(markerType, index, startMarkerPosition, endMarkerPosition) {
     const activeClass = `${markerType}-marker-active`;
@@ -212,10 +239,9 @@ moveToNextCell() {
     this.currentCell++;
     if (this.currentCell >= this.cells.length) {
         this.currentCell = 0; // Loop back to the first cell
-    }
     this.focusCurrentCell();
 }
-
+}
 moveToPreviousCell() {
     this.currentCell--;
     if (this.currentCell < 0) {

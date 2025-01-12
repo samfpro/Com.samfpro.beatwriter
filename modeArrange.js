@@ -1,20 +1,19 @@
 class ModeArrange {
-  constructor(beatwriter) {
-    this.beatwriter = beatwriter;
+  constructor(app) {
+    this.app = app;
     this.moveFromIndex = null;
     this.moveToIndex = null;
   }
 
-  handleGridClick(cellIndex) {
+  handleGridCellClick(cellIndex) {
     console.log("Attempting to handle arrange mode click");
 
     if (this.moveFromIndex === null) {
       this.moveFromIndex = cellIndex;
       console.log("Set moveFromIndex to", this.moveFromIndex);
       this.highlightPossibleMoves(cellIndex);
-      this.beatwriter.gridView.updateGrid();
     } else {
-      if (this.beatwriter.cells[cellIndex].isCandidate == true) {
+      if (this.app.getModule("gridView").cells[cellIndex].isCandidate == true) {
         this.moveToIndex = cellIndex;
         console.log("Set moveToIndex to", this.moveToIndex);
         this.performMove();
@@ -22,7 +21,6 @@ class ModeArrange {
       this.moveFromIndex = null;
       this.moveToIndex = null;
       }
-      this.beatwriter.gridView.updateGrid();
     }
   }
 
@@ -36,15 +34,14 @@ class ModeArrange {
     // Highlight possible moves to the right
 
  for (let i = 1; i <= blanksToRight; i++) {
-  this.beatwriter.cells[cellIndex + i].isCandidate = true;
+  this.app.getModule("gridView").cells[cellIndex + i].isCandidate = true;
 }
 
     for (let i = 1; i <= blanksToLeft; i++) {
-      this.beatwriter.cells[cellIndex - i].isCandidate = true;
+      this.app.getModule("gridView").cells[cellIndex - i].isCandidate = true;
 
     }
 
-    this.beatwriter.gridView.updateGrid();
   }
 
   countBlanksToRight(cellIndex) {
@@ -60,9 +57,9 @@ class ModeArrange {
     for (let i = firstCellToRight; i < rowEnd; i++) {
     console.log("counting, i= " + i + "rowEnd = " + rowEnd);
 
-    if (this.beatwriter.cells[i].syllable.trim() === "") {
+    if (this.app.getModule("gridView").cells[i].syllable.trim() === "") {
         
-console.log("syllable: " +this.beatwriter.cells[i].syllable.trim());
+console.log("syllable: " +this.app.getModule("gridView").cells[i].syllable.trim());
 blanks++;
       }
     }
@@ -77,7 +74,7 @@ blanks++;
     let blanks = 0;
 
     for (let i = cellIndex - 1; i >= rowStart ; i--) {
-      if (this.beatwriter.cells[i].syllable.trim() === "") {
+      if (this.app.getModule("gridView").cells[i].syllable.trim() === "") {
         blanks++;
       }
     }
@@ -94,7 +91,7 @@ blanks++;
     console.log("Move distance:", moveDistance);
     console.log("Blanks to move:", blanksToMove);
 
-    const syllablesArray = this.beatwriter.cells.map(cell => cell.syllable);
+    const syllablesArray = this.app.getModule("gridView").cells.map(cell => cell.syllable);
 
     if (moveDistance > 0) {
       // Moving to the right
@@ -105,11 +102,9 @@ blanks++;
     }
 
     // Update the syllables property in beatwriter.cells
-    this.beatwriter.cells.forEach((cell, index) => {
+    this.app.getModule("gridView").cells.forEach((cell, index) => {
       cell.syllable = syllablesArray[index];
     });
-
-    this.beatwriter.gridView.updateGrid();
   }
 
   moveSyllablesRight(syllablesArray, blanksToMove) {
@@ -136,7 +131,7 @@ moveSyllablesLeft(syllablesArray, blanksToMove) {
   syllablesArray.splice(this.moveToIndex + 1, 0, ...Array(blanksToMove).fill(''));
 }
   resetCandidateCells() {
-    this.beatwriter.cells.forEach(cell => {
+    this.app.getModule("gridView").cells.forEach(cell => {
       cell.isCandidate = false;
     });
   }

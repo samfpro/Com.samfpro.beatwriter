@@ -8,7 +8,7 @@ class Cell {
         this.isCurrentCell = false;
         this._isPlayable = false;
         this.isEditable = false;
-        this.isCandidate = false;
+        this._isCandidate = false;
         this._stepPlaying = false;
         this._mode = null;
         
@@ -39,6 +39,19 @@ class Cell {
             this.gridCell.classList.add("is-playable");
         } else {
             this.gridCell.classList.remove("is-playable");
+        }
+    }
+    
+    get isCandidate() {
+        return this._isCandidate;
+    }
+
+    set isCandidate(value) {
+        this._isCandidate = value;
+        if (value == true) {
+            this.gridCell.classList.add("is-candidate");
+        } else {
+            this.gridCell.classList.remove("is-candidate");
         }
     }
 
@@ -74,10 +87,11 @@ class Cell {
         if (value == MODE_WRITE){
             this.gridCell.classList.remove("mode-arrange");
             this.gridCell.classList.add("mode-write");
+            this.gridCell.contentEditable = true;
         }else if (value == MODE_ARRANGE){
             this.gridCell.classList.remove("mode-write");
             this.gridCell.classList.add("mode-arrange");
-            
+            this.gridCell.contentEditable = false;
        
         }
     }
