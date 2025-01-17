@@ -1,7 +1,7 @@
 class FileManagerModule extends Module {
   constructor(app, titleText, styleName, htmlFile, parentElement) {
     super(app, titleText, styleName, htmlFile, parentElement);
-    
+    window.fileManagerModule = this;
     this.projectNameInput = null;
     this.saveButton = null;
     this.loadButton = null;
@@ -38,27 +38,34 @@ class FileManagerModule extends Module {
     this.newButton?.addEventListener("click", () => this.createNewProject());
   }
 
+  // Helper function to handle circular references
+  static getCircularReplacer() {
+    const seenObjects = new WeakSet();
+    return (key, value) => {
+      if (typeof value === "object" && value !== null) {
+        if (seenObjects.has(value)) {
+          return "[Circular]"; // Replace circular reference with a placeholder
+        }
+        seenObjects.add(value);
+      }
+      return value;
+    };
+  }
+
   saveProject() {
-    const diskModule = this.app.getModule("disk");
-    const gridViewModule = this.app.getModule("gridView");
+    const disk= this.app.getModule("disk");
+    const gridView = this.app.getModule("gridView");
+    const mixer = this.app.getModule("mixer");
 
-    if (diskModule && gridViewModule) {
-      console.log(`Saving project: ${diskModule.projectName}`);
-      const saveData = {
-        projectName: diskModule.projectName,
-        projectUrl: diskModule.projectUrl,
-        beatTrackUrl: diskModule.beatTrackUrl,
-        BPM: diskModule.BPM,
-        startMarkerPosition: diskModule.startMarkerPosition,
-        endMarkerPosition: diskModule.endMarkerPosition,
-        mode: diskModule.mode,
-        cells: gridViewModule.cells.map(cell => cell.toJSON()), // Assuming Cell class has a `toJSON` method
-      };
-
-      const saveDataString = JSON.stringify(saveData);
+    if (disk && gridView && mixer) {
+      const project = new Project(disk.projectUrl);
+      
+      // Compile the project and handle circular references
+      const serializedData = project.compileProject(disk, gridView, mixer);
+      console.log("serializedData: " + serializedData);
 
       if (window.Android) {
-        window.Android.saveFile("fileManagerModuleSave"); 
+        window.Android.saveFile(serializedData);
       } else {
         console.warn("Save functionality is not available in this environment.");
       }
@@ -69,17 +76,21 @@ class FileManagerModule extends Module {
 
   openFilePicker() {
     if (window.Android) {
-      window.Android.openFilePicker("fileManagerModuleLoad");
+      window.Android.openFilePicker();
     } else {
       console.warn("Load functionality is not available in this environment.");
     }
   }
 
-  // Method to handle the loaded file and load data into the app
   handleLoadedFile(fileData) {
     try {
-      const parsedData = JSON.parse(fileData);
-      this.loadProject(parsedData);
+      const project = new Project();
+      project.loadFromSerializedProject(
+        fileData,
+        this.app.getModule("disk"),
+        this.app.getModule("gridView"),
+        this.app.getModule("mixer")
+      );
       alert("Project loaded successfully!");
     } catch (error) {
       console.error("Error parsing loaded file: ", error);
@@ -87,36 +98,23 @@ class FileManagerModule extends Module {
     }
   }
 
-  loadProject(parsedData) {
-    const diskModule = this.app.getModule("disk");
-    const gridViewModule = this.app.getModule("gridView");
-
-    if (diskModule && parsedData) {
-      diskModule.projectName = parsedData.projectName || "Untitled Project";
-      diskModule.projectUrl = parsedData.projectUrl;
-      diskModule.beatTrackUrl = parsedData.beatTrackUrl;
-      diskModule.BPM = parsedData.BPM;
-      diskModule.startMarkerPosition = parsedData.startMarkerPosition;
-      diskModule.endMarkerPosition = parsedData.endMarkerPosition;
-      diskModule.mode = parsedData.mode;
-
-      // Assuming that parsedData.cells is an array of cell data
-      if (gridViewModule) {
-        gridViewModule.loadCells(parsedData.cells);
-      }
-    }
-  }
-
   createNewProject() {
     const diskModule = this.app.getModule("disk");
-    const gridViewModule = this.app.getModule("gridView");
+    const gridView = this.app.getModule("gridView");
 
-    if (diskModule && gridViewModule) {
+    if (diskModule && gridView) {
       console.log("Creating a new project.");
-      diskModule.projectName = "Untitled Project";
-      diskModule.projectUrl = "";
-      diskModule.beatTrackUrl = "";
-      gridViewModule.resetCells();
+      const project = new Project();
+      project.loadFromSerializedProject(
+        JSON.stringify({
+          projectName: "Untitled Project",
+          projectUrl: "",
+          cells: [],
+        }),
+        diskModule,
+        gridView,
+        this.app.getModule("mixer")
+      );
     }
   }
 }

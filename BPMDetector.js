@@ -74,7 +74,8 @@ class BPMDetector {
             }
         }
 
-        return Number(bestTempo);
+        // Round to the closest tenth
+        return parseFloat(bestTempo).toFixed(1);
     }
 }
 
@@ -82,4 +83,3 @@ class BPMDetector {
 // const bpmDetector = new BPMDetector();
 // const audioFile = document.querySelector('input[type="file"]').files[0];
 // bpmDetector.analyzeBPM(audioFile).then(bpm => console.log(`BPM: ${bpm}`));
-

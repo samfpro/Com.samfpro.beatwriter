@@ -1,13 +1,11 @@
 class Cell {
-    constructor(gridView, index) {
+    constructor(gridContainer, index) {
         this.gridCell = null;
-        this.gridView = gridView;
-        this.gridContainer = null;
+        this.gridContainer = gridContainer;
         this.index = index;
         this._syllable = "";
         this.isCurrentCell = false;
         this._isPlayable = false;
-        this.isEditable = false;
         this._isCandidate = false;
         this._stepPlaying = false;
         this._mode = null;
@@ -24,7 +22,6 @@ class Cell {
         this.gridCell.setAttribute("autocorrect", "off");
         this.gridCell.setAttribute("spellcheck", "false");
         this.gridCell.setAttribute("autocomplete", "off");
-        this.gridContainer = this.gridView.gridContainer;
         this.gridContainer.appendChild(this.gridCell);
         this.mode = MODE_WRITE;
     }
@@ -104,20 +101,19 @@ class Cell {
             index: this.index,
             syllable: this._syllable,
             isPlayable: this._isPlayable,
-            isCandidate: this.isCandidate,
-            isEditable: this.isEditable,
-            stepPlaying: this._stepPlaying
+            isCandidate: this._isCandidate,
+            stepPlaying: this._stepPlaying,
+            mode: this._mode
         };
     }
 
     /**
      * Recreate a Cell instance from a serialized object.
      * @param {Object} data Serialized state of a Cell.
-     * @param {GridView} gridView The GridView instance to attach the Cell to.
      * @returns {Cell} Restored Cell instance.
      */
-    static fromJSON(data, gridView) {
-        const cell = new Cell(gridView, data.index);
+    static fromJSON(data, gridContainer) {
+        const cell = new Cell(gridContainer, data.index);
         cell.syllable = data.syllable || "";
         cell.isPlayable = data.isPlayable || false;
         cell.isCandidate = data.isCandidate || false;
@@ -128,10 +124,9 @@ class Cell {
 }
 
 class StartMarker{
-    constructor(gridView, index) {
+    constructor(startMarkerContainer, index) {
         this.startMarkerCell = null;
-        this.startMarkerContainer = null;
-        this.gridView = gridView;
+        this.startMarkerContainer = startMarkerContainer;
         this.index = index;
         
         this.setupDOM();
@@ -141,17 +136,15 @@ class StartMarker{
     setupDOM(){
         this.startMarkerCell = document.createElement("div");
         this.startMarkerCell.classList.add("start-marker")
-        this.startMarkerContainer = this.gridView.startMarkerContainer;
         this.startMarkerContainer.appendChild(this.startMarkerCell);
     }
     
 }
 
 class EndMarker {
-    constructor(gridView, index) {
+    constructor(endMarkerContainer, index) {
         this.endMarkerCell = null;
-        this.endMarkerContainer = null;
-        this.gridView = gridView;
+        this.endMarkerContainer = endMarkerContainer;
         this.index = index;
         
         this.setupDOM();
@@ -161,7 +154,7 @@ class EndMarker {
     setupDOM(){
         this.endMarkerCell = document.createElement("div");
         this.endMarkerCell.classList.add("end-marker")
-        this.endMarkerContainer = this.gridView.endMarkerContainer;
+        this.endMarkerContainer = this.endMarkerContainer;
         this.endMarkerContainer.appendChild(this.endMarkerCell);
         
     }

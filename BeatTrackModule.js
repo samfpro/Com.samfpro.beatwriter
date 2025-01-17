@@ -23,7 +23,7 @@ class BeatTrackModule extends Module {
     this.bpmMultButton = this.moduleContent.querySelector("#bpm-mult-button");
     this.bpmDivButton = this.moduleContent.querySelector("#bpm-div-button");
     this.bpmCommitButton = this.moduleContent.querySelector("#commit-bpm-button");
-    this.valueSelectorContainer = this.moduleContent.querySelector("#be-track-value-selector");
+    this.valueSelectorContainer = this.moduleContent.querySelector("#beat-track-value-selector");
         console.log("beatTrackNameDisplay: " + this.beatTrackNameDisplay);
     // Validate the presence of required elements
     if (!this.beatTrackNameDisplay) {

@@ -207,15 +207,25 @@ class MixerModule extends Module {
       this.channels.push(channel);
     });
   }
-startPlayback() {
+
+  startPlayback() {
   this.channels.forEach((channel) => channel.startMeterAnimation());
-  this.transport.startPlayback(); // Assuming transport handles playback
+  // Assuming transport handles playback
 }
 
 stopPlayback() {
-  this.channels.forEach((channel) => channel.stopMeterAnimation());
-  this.transport.stopPlayback(); // Assuming transport handles stopping playback
-}@
+  this.channels.forEach((channel) => {
+    channel.stopMeterAnimation();
+
+    // Reset all meter lights to inactive (opacity = 0.2)
+    const lights = channel.meter.querySelectorAll(".meter-indicator-light");
+    lights.forEach((light) => {
+      light.style.opacity = "0.2";
+    });
+  });
+
+  // Assuming transport handles stopping playback
+}
   
    // Handle solo state logic
   // Handle solo state logic

@@ -173,13 +173,12 @@ class DiskModule extends Module {
   set BPM(value) {
     console.log("setting bpm to " + value);
     this.playParameterValues[0].currentValue = value;
-    this.handleBPMChange();
+    this.updateWaveFormMarkers();
     this.updatePropertiesDisplay();
   }
   
   updateWaveFormMarkers(){
     const wfv = this.app.getModule("waveFormView");
-    
     wfv.updateMarkers(this.startMarkerPosition, this.endMarkerPosition, this.BPM, this.beatTrackLeadInBars);
   }
   

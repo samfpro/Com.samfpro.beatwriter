@@ -91,7 +91,7 @@ class GridViewModule extends Module {
     const columnLabelContainers = this.gridViewDisplay.querySelectorAll(".column-label-container");
 
     for (let i = 0; i < GRID_CELL_COUNT; i++) {
-        const cell = new Cell(this, i);
+        const cell = new Cell(this.gridContainer, i);
         this.cells.push(cell);
     }
 
@@ -115,8 +115,8 @@ class GridViewModule extends Module {
         }
 
         // Create markers
-        this.startMarkers.push(new StartMarker(this, i).startMarkerCell);
-        this.endMarkers.push(new EndMarker(this, i).endMarkerCell);
+        this.startMarkers.push(new StartMarker(this.startMarkerContainer, i).startMarkerCell);
+        this.endMarkers.push(new EndMarker(this.endMarkerContainer, i).endMarkerCell);
     }
   }
 
@@ -165,27 +165,35 @@ class GridViewModule extends Module {
 }
 
   handleMarkerClick(event, markerType) {
-    console.log("detected marker click");
-    const markerClass = `${markerType}-marker`;
-    const markerArray = markerType === "start" ? this.startMarkers : this.endMarkers;
+  console.log("detected marker click");
+  const markerClass = `${markerType}-marker`;
+  const markerArray = markerType === "start" ? this.startMarkers : this.endMarkers;
 
-    const markerElement = event.target.closest(`.${markerClass}`);
-    if (markerElement) {
-      const index = markerArray.indexOf(markerElement);
-      if (index !== -1) {
-        console.log(`${markerType} marker ${index} clicked`);
-        if (markerType === "start") {
-          this.app.getModule("disk").startMarkerPosition = index;
+  const markerElement = event.target.closest(`.${markerClass}`);
+  if (markerElement) {
+    const index = markerArray.indexOf(markerElement);
+    if (index !== -1) {
+      console.log(`${markerType} marker ${index} clicked`);
+
+      if (markerType === "start") {
+        // Check if the clicked marker is the currently active start marker
+        if (index === this.app.getModule("disk").startMarkerPosition) {
+          console.log("Active start marker clicked. Starting transport.");
+          this.app.getModule("transport").start();
         } else {
-          this.app.getModule("disk").endMarkerPosition = index;
+          // Update the startMarkerPosition to the new marker
+          this.app.getModule("disk").startMarkerPosition = index;
         }
       } else {
-        console.error(`Could not find index for the clicked ${markerType} marker.`);
+        this.app.getModule("disk").endMarkerPosition = index;
       }
     } else {
-      console.log(`No ${markerType} marker found for the clicked element.`);
+      console.error(`Could not find index for the clicked ${markerType} marker.`);
     }
+  } else {
+    console.log(`No ${markerType} marker found for the clicked element.`);
   }
+}
 
 
   updateMarker(markerType, index, startMarkerPosition, endMarkerPosition) {
@@ -254,5 +262,28 @@ moveToNextRow() {
     const nextRow = Math.floor(this.currentCell / 16) + 1;
     this.currentCell = nextRow * 16;
 }
+  
+  createCellFromData(data) {
+        const existingCell = this.cells.find(cell => cell.index === data.index);
+        let cell;
+
+        if (existingCell) {
+            // Update the existing cell
+            cell = existingCell;
+        } else {
+            // Create a new cell if none exists for this index
+            cell = new Cell(this.gridContainer, data.index);
+            this.cells[data.index] = cell; // Ensure the cell is added at the correct index
+        }
+
+        // Restore properties from the serialized data
+        cell.syllable = data.syllable || "";
+        cell.isPlayable = !!data.isPlayable;
+        cell.isCandidate = !!data.isCandidate;
+        cell.stepPlaying = !!data.stepPlaying;
+        cell.mode = data.mode || MODE_WRITE;
+
+        return cell;
+    }
   
 }

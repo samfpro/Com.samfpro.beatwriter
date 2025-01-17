@@ -49,6 +49,7 @@ class TransportModule extends Module {
   async start() {
   console.log("starting playback");
   this.playButton.classList.add("active");
+  this.app.getModule("mixer").startPlayback();
   let mode = this.app.getModule("disk").mode;
   this.previousMode = mode;
   mode = MODE_PLAY;
@@ -206,6 +207,7 @@ async stopSequencer() {
   cells.forEach(cell => {
     cell.stepPlaying = false;
   });
+  this.app.getModule("mixer").stopPlayback();
   this.playButton.classList.remove("active");
 }
 
