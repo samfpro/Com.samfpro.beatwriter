@@ -48,7 +48,7 @@ class BeatTrackModule extends Module {
   // Open the file picker via Android interface or fallback
   openFilePicker() {
     if (window.Android) {
-      window.Android.openFilePicker();
+      window.Android.openFilePicker("audio");
     } else {
       console.warn("File picker not available in this environment.");
     }
@@ -86,6 +86,8 @@ class BeatTrackModule extends Module {
 
     // Use XMLHttpRequest to load the audio file
     try {
+        const lc = new LoadingCover();
+        lc.show("Attempting to find BPM, please wait... ")
         const audioBlob = await this._loadAudioFile(diskModule.beatTrackUrl);
 
         // Analyze BPM using BPMDetector
@@ -93,7 +95,7 @@ class BeatTrackModule extends Module {
         const bpm = await bpmDetector.analyzeBPM(audioBlob);
 
         console.log(`Detected BPM: ${bpm}`);
-
+        lc.hide();
         // Update the detectBpmDisplay element with the BPM value
         if (this.detectBpmDisplay) {
             this.detectBpmDisplay.textContent = bpm;

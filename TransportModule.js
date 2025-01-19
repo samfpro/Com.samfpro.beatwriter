@@ -47,7 +47,8 @@ class TransportModule extends Module {
     
 
   async start() {
-  console.log("starting playback");
+  this.app.lc.show("Please Wait");
+    console.log("starting playback");
   this.playButton.classList.add("active");
   this.app.getModule("mixer").startPlayback();
   let mode = this.app.getModule("disk").mode;
@@ -64,6 +65,7 @@ class TransportModule extends Module {
     console.error("Error starting playback:", error);
     alert("Failed to start playback. Please try again.");
   }
+    this.app.lc.hide();
 }
 
 

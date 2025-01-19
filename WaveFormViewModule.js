@@ -50,6 +50,7 @@ class WaveFormViewModule extends Module {
   }
 
   async updateWaveForm(audioFileUrl, start, end, bpm, leadIn) {
+    this.app.lc.show("Loading waveform.  Please wait....");
     console.log("updateWaveform() called.");
 
     this.audioFileUrl = audioFileUrl;
@@ -102,6 +103,7 @@ class WaveFormViewModule extends Module {
             this.waveFormDrawn = true;
             console.log("markerParams: " + start + end + bpm + leadIn);
             this.updateMarkers(start, end, bpm, leadIn);
+            this.app.lc.hide();
           },
           (error) => {
             console.error("Error decoding audio data:", error);
@@ -155,9 +157,8 @@ class WaveFormViewModule extends Module {
     // Draw white region
     this.regionCtx.fillStyle = "rgba(255, 255, 255, 0.5)";
     this.regionCtx.fillRect(xStart, 0, xEnd - xStart, this.regionCanvas.height);
-  }
-  showPlaybackCursor() {
     
   }
+  
 
 }

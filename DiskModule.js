@@ -2,7 +2,7 @@ class DiskModule extends Module {
   constructor(app, titleText, styleName, htmlFile, parentElement) {
     // Call the parent class constructor
     super(app, titleText, styleName, htmlFile, parentElement);
-
+    window.diskModule = this;
     // Initialize default values for properties
     this._projectName = "";
     this._projectUrl = "";
@@ -156,15 +156,20 @@ class DiskModule extends Module {
     
   }
   
-  async drawWave(value){
-     const waveFormViewModule = this.app.getModule("waveFormView");
-    if (waveFormViewModule){
-      waveFormViewModule.updateWaveForm(value, this.startMarkerPosition, this.endMarkerPosition, this.BPM, this.beatTrackParameterValues[1].currentValue);
+  async drawWave(value) {
+  const waveFormViewModule = this.app.getModule("waveFormView");
+  if (waveFormViewModule) {
+    // Pass a callback to hideWhenReady that calls updateWaveForm and waits for animation frame
+      waveFormViewModule.updateWaveForm(
+        value,
+        this.startMarkerPosition,
+        this.endMarkerPosition,
+        this.BPM,
+        this.beatTrackParameterValues[1].currentValue
+      );
       console.log("waveViewMarkersParameters: " + this.startMarkerPosition + this.endMarkerPosition + this.BPM + this.beatTrackParameterValues[1].currentValue);
-    }   
+    }
   }
-
-  
   
   get BPM() {
     return this.playParameterValues[0].currentValue;

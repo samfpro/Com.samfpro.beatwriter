@@ -76,7 +76,7 @@ class FileManagerModule extends Module {
 
   openFilePicker() {
     if (window.Android) {
-      window.Android.openFilePicker();
+      window.Android.openFilePicker("json");
     } else {
       console.warn("Load functionality is not available in this environment.");
     }

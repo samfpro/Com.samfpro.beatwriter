@@ -50,6 +50,28 @@ body::before {
     
 }
 
+/* Cover overlay styling */
+#loadingCover {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.5em;
+  font-family: Arial, sans-serif;
+  text-align: center;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.3s, visibility 0.3s;
+}
+
+
 .grid-cell.mode-write{
     border-color: lightblue;
 }
@@ -362,10 +384,10 @@ body::before {
 }
 
 .wave-form-view-module {
-  
 }
 
 .grid-view-module {
+  position: relative;
   width: 800px;
   background-color: black;
 }
@@ -396,6 +418,14 @@ body::before {
   border-right-color: darkslategray;
   border-bottom-color: slategray;
   border-left-color: gainsboro;
+}
+
+#beat-track-name-display{
+  overflow: hidden; /* Hide content that overflows the container */
+  text-overflow: clip; /* Clips the overflow text without adding ellipsis */
+  white-space: nowrap; /* Prevent text from wrapping to the next line */
+  width: 150px;
+  
 }
 
 .inset{
@@ -431,6 +461,7 @@ body::before {
 #wave-form-view-display{
     height: 30px;
     position: relative;
+    max-width: 98%;
 }
 
 #wave-form-canvas {
@@ -456,7 +487,7 @@ body::before {
     
 }
 #cp-bottom-row{
-    grid-template-columns: 1fr 1fr 1fr 4fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr 8fr 1fr;
     
 }
 #cp-grid-view{
@@ -511,6 +542,7 @@ body::before {
 .properties-display {
     height: 35px;
     overflow: auto;
+    width: 100px;
 }
 
 .display {
@@ -594,9 +626,10 @@ body::before {
 }
 
 #syllable-switch-container{
+  position: absolute;
   height: 24px;
-  margin-top: -8px;
-  margin-left: 60px;
+  top: 0px;
+  left: 70px;
   display: flex;
   flex-direction: row;
   width: fit-content;

@@ -28,7 +28,7 @@ class BPMDetector {
 
     _getPeaks(data) {
         const peaks = [];
-        const threshold = 0.9;
+        const threshold = 0.95;
 
         for (let i = 0; i < data.length; i++) {
             if (data[i] > threshold) {
@@ -54,29 +54,31 @@ class BPMDetector {
         return intervals;
     }
 
-    _calculateBPM(intervals) {
-        const tempoCounts = {};
+_calculateBPM(intervals) {
+    const tempoCounts = {};
 
-        intervals.forEach(interval => {
-            const bpm = Math.round((60 * this.audioContext.sampleRate) / interval);
-            if (bpm > 30 && bpm < 300) { // Filter unrealistic BPM values
-                tempoCounts[bpm] = (tempoCounts[bpm] || 0) + 1;
-            }
-        });
-
-        let bestTempo = 0;
-        let maxCount = 0;
-
-        for (const bpm in tempoCounts) {
-            if (tempoCounts[bpm] > maxCount) {
-                bestTempo = bpm;
-                maxCount = tempoCounts[bpm];
-            }
+    intervals.forEach(interval => {
+        const bpm = (60 * this.audioContext.sampleRate) / interval;
+        if (bpm > 30 && bpm < 300) { // Filter unrealistic BPM values
+            const roundedBPM = Math.round(bpm);
+            tempoCounts[roundedBPM] = (tempoCounts[roundedBPM] || 0) + 1;
         }
+    });
 
-        // Round to the closest tenth
-        return parseFloat(bestTempo).toFixed(1);
+    let bestTempo = 0;
+    let maxCount = 0;
+
+    for (const bpm in tempoCounts) {
+        if (tempoCounts[bpm] > maxCount) {
+            bestTempo = bpm;
+            maxCount = tempoCounts[bpm];
+        }
     }
+
+    // Round to the nearest quarter
+    const roundedToQuarter = Math.round(bestTempo * 4) / 4;
+    return roundedToQuarter;
+}
 }
 
 // Usage example:

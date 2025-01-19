@@ -1,6 +1,7 @@
 class App {
   constructor() {
-    this.modules = {}; // Store module instances here
+    this.lc = new LoadingCover();
+          this.modules = {}; // Store module instances here
     this.initializationOrder = [
          {
         name: "title",
@@ -109,12 +110,14 @@ class App {
   }
 
   async initializeModules() {
-    for (const { name, class: Module, args } of this.initializationOrder) {
+          this.lc.show("Loading Modules, please wait...");
+          for (const { name, class: Module, args } of this.initializationOrder) {
       const module = new Module(this, ...args);
       await module.initializeWithHtml(); // Ensure the module is fully initialized before moving on
       this.modules[name] = module; // Store the initialized module
     }
     console.log(`[${new Date().toISOString()}] All modules instantiated and initialized`);
+    this.lc.hide();    
   }
 
   getModule(name) {
