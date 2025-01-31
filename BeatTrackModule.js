@@ -8,8 +8,14 @@ class BeatTrackModule extends Module {
     this.bpmMultButton = null;
     this.bpmDivButton = null;
     this.valueSelectorContainer = null;
+    this.parameterValues = [
+      new ParameterValue("LeadInMS", "OFSTMS", 0, 10000, 0, "number", this.updateWaveFormMarkers),
+      new ParameterValue("LeadInBars", "OFSTBR", 0, 64, 0, "number", this.updateWaveFormMarkers),
+      new ParameterValue("PlayRate", "PLAYRT", 0, 300, 100, "number", this.updateWaveFormMarkers)
+    ];
+    this._beatTrackUrl = null;
+    this.updateWaveFormMarkers = this.updateWaveFormMarkers.bind(this);
   }
-
   // Override setupDOM to handle the DOM elements and event listeners
   setupDOM() {
     super.setupDOM();
@@ -24,7 +30,8 @@ class BeatTrackModule extends Module {
     this.bpmDivButton = this.moduleContent.querySelector("#bpm-div-button");
     this.bpmCommitButton = this.moduleContent.querySelector("#commit-bpm-button");
     this.valueSelectorContainer = this.moduleContent.querySelector("#beat-track-value-selector");
-        console.log("beatTrackNameDisplay: " + this.beatTrackNameDisplay);
+    
+    console.log("beatTrackNameDisplay: " + this.beatTrackNameDisplay);
     // Validate the presence of required elements
     if (!this.beatTrackNameDisplay) {
       console.warn("Beat track name display not found.");
@@ -34,7 +41,7 @@ class BeatTrackModule extends Module {
     }
     if (!this.tryBpmButton) {
       console.warn("Try BPM button not found.");
-    }
+   }
 
     // Attach event listeners only if elements exist
     this.beatTrackLoadButton?.addEventListener("click", () => this.openFilePicker());
@@ -42,9 +49,16 @@ class BeatTrackModule extends Module {
     this.bpmMultButton?.addEventListener("click", () => this.handleBPMMultiply());
     this.bpmDivButton?.addEventListener("click", () => this.handleBPMDivide());
     this.bpmCommitButton?.addEventListener("click", () => this.handleBPMCommit());
-
+    this.loadValueSelector();
+    this.beatTrackUrl = "beatTrack/Turtletuck_83BPM.mp3";
   }
-
+  
+  updateWaveFormMarkers = () => {
+  const wf = this.app.getModule("waveFormView");
+  if (wf) {
+    wf.updateMarkers();
+  }
+};
   // Open the file picker via Android interface or fallback
   openFilePicker() {
     if (window.Android) {
@@ -94,7 +108,7 @@ class BeatTrackModule extends Module {
         const bpmDetector = new BPMDetector();
         const bpm = await bpmDetector.analyzeBPM(audioBlob);
 
-        console.log(`Detected BPM: ${bpm}`);
+        console.log("Detected BPM:" + bpm);
         lc.hide();
         // Update the detectBpmDisplay element with the BPM value
         if (this.detectBpmDisplay) {
@@ -107,6 +121,7 @@ class BeatTrackModule extends Module {
     }
 }
 
+
 // Helper method to load audio file using XMLHttpRequest
 _loadAudioFile(fileUrl) {
     return new Promise((resolve, reject) => {
@@ -118,7 +133,7 @@ _loadAudioFile(fileUrl) {
             if (xhr.status === 200) {
                 resolve(xhr.response);
             } else {
-                reject(new Error(`Failed to load file: ${xhr.status}`));
+                reject(new Error("Failed to load file:" + xhr.status));
             }
         };
 
@@ -134,7 +149,6 @@ _loadAudioFile(fileUrl) {
       const htmlLoader = new HTMLFileLoader();
       const content = await htmlLoader.loadHtmlFromFile(VALUE_SELECTOR_URL);
       this.valueSelectorContainer.innerHTML = content;
-      this.parameterValues = this.app.getModule("disk").beatTrackParameterValues;
       this.valueSelector = new ValueSelector(this, this.parameterValues);
 
   }
@@ -156,9 +170,53 @@ _loadAudioFile(fileUrl) {
   handleBPMCommit(){
     if (this.detectBpmDisplay.textContent != ""){
       let bpm = this.detectBpmDisplay.textContent;
-      this.app.getModule("Disk").BPM = bpm;
+      this.app.getModule("playParameters").BPM = bpm;
     }
     
   }
   
+  get beatTrackUrl(){
+    return this._beatTrackUrl;
+  }
+  
+  set beatTrackUrl(value){
+    this._beatTrackUrl = value;
+    this.beatTrackNameDisplay.textContent = value;
+   this.updateWaveFormMarkers();
+  }
+  
+  get offsetMS(){
+    return this.parameterValues[0].currentValue;
+  }
+  
+  set offsetMS(value){
+    this.parameterValues[0].currentValue = value;
+    if (this.valueSelector.currentIndex == 0){
+      this.valueSelector.display.textContent = value;
+    }
+    this.app.getModule("waveFormView").updateMarkers();
+  }
+    
+    get offsetBars(){
+    return this.parameterValues[1].currentValue;
+  }
+  
+  set offsetBars(value){
+    this.parameterValues[1].currentValue = value;
+    if (this.valueSelector.currentIndex == 1){
+      this.valueSelector.display.textContent = value;
+    }
+    this.updateWaveFormMarkers();
+  }
+    
+    get playRate(){
+    return this.parameterValues[2].currentValue;
+  }
+  
+  set playRate(value){
+    this.parameterValues[2].currentValue = value;
+    if (this.valueSelector.currentIndex == 2){
+      this.valueSelector.display.textContent = value;
+    }
+  }
 }

@@ -104,7 +104,10 @@ class ValueSelector {
     // Update display
     this.display.textContent = this.parameterValues[index].currentValue;
     this.currentParameterIndex = index;
-    this.parentModule.app.getModule("disk").updatePropertiesDisplay();
+    const pm = this.parentModule.app.getModule("projectManager");
+    if (pm){
+     pm.updatePropertiesDisplay();
+    }  
   }
 
   toggleSelector() {

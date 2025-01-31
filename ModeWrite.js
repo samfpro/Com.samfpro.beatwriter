@@ -62,75 +62,70 @@ function getSyllables(word) {
 
 
 class ModeWrite {
-    constructor(app) {
-        this.app = app; // Use GridViewModule instance directly
+  constructor(gridView) {
+    this.gridView = gridView; // Use GridViewModule instance directly
+  }
+
+  async handleGridClick(cellIndex) {
+    console.log("Grid cell clicked: " + cellIndex);
+
+    const currentWord = this.gridView.getWord(); // Get the word from the current cell
+    if (currentWord !== '') {
+      console.log("Processing word...");
+      await this.processWord(currentWord);
+    } else {
+      this.gridView.setCellSyllable(this.gridView.currentCell, ""); // Clear the syllable if no word is found
+      console.log("No word found. Clearing syllable.");
     }
 
-    async handleGridClick(cellIndex) {
-        console.log("Grid cell clicked: " + cellIndex);
-        
-        const currentWord = this.app.getModule("gridView").getWord(); // Get the word from the current cell
-        if (currentWord !== '') {
-            console.log("Processing word...");
-            await this.processWord(currentWord);
-        } else {
-            this.app.getModule("gridView").setCellSyllable(this.app.getModule("disk").currentCell, ""); // Clear the syllable if no word is found
-            console.log("No word found. Clearing syllable.");
-        }
+    this.gridView.currentCell = cellIndex; // Update the current cell
+  }
 
-        this.app.getModule("disk").currentCell = cellIndex; // Update the current cell
-    }
+  async handleGridKeyup(event) {
+    const currentWord = this.gridView.getWord(); // Get the current word
+    console.log("Current cell content: " + currentWord);
 
-    async handleGridKeyup(event) {
-        const gridView = this.app.getModule("gridView");
-        const currentWord = gridView.getWord(); // Get the current word
-        console.log("Current cell content: " + currentWord);
-
-        if (event.key === "Enter") {
-            if (currentWord !== "") {
-                await this.processWord();
-            }
-            this.moveToNextRow();
-        } else if (event.key === "Backspace" && currentWord === "") {
-            this.gridView.moveToPreviousCell(); // Move to the previous cell
-            this.selectTextIfPresent();
-        }
-
-        if (/[a-zA-Z']$/.test(currentWord)) {
-           console.log("Last character is a letter or an apostrophe, continuing typing in the cell.");
-           return;
-        }
-
-        console.log("Non-letter detected at the end. Processing word...");
+    if (event.key === "Enter") {
+      if (currentWord !== "") {
         await this.processWord(currentWord);
+      }
+      this.moveToNextRow();
+    } else if (event.key === "Backspace" && currentWord === "") {
+      this.gridView.moveToPreviousCell(); // Move to the previous cell
+      this.selectTextIfPresent();
     }
 
- async processWord(word) {
+    if (/[a-zA-Z']$/.test(currentWord)) {
+      console.log("Last character is a letter or an apostrophe, continuing typing in the cell.");
+      return;
+    }
+
+    console.log("Non-letter detected at the end. Processing word...");
+    await this.processWord(currentWord);
+  }
+
+  async processWord(word) {
     console.log("Processing word: " + word);
 
     const syllables = await getSyllables(word);
-    const gridView = this.app.getModule("gridView");
-    const diskModule = this.app.getModule("disk");
 
     syllables.forEach((syllable, index) => {
-        console.log("Setting syllable: " + syllable + " at cell " + diskModule.currentCell);
-        
-        gridView.setCellSyllable(diskModule.currentCell, syllable);
-        diskModule.currentCell++; // Directly update the disk's currentCell property
+      console.log("Setting syllable: " + syllable + " at cell " + this.gridView.currentCell);
+      this.gridView.setCellSyllable(this.gridView.currentCell, syllable);
+      this.gridView.currentCell++; // Directly update the grid's currentCell property
     });
-}
+  }
 
-    selectTextIfPresent() {
-        if (this.gridView.getCurrentCellSyllable()) {
-            console.log("Selecting text at cell " + this.gridView.currentCell);
-            this.gridView.selectTextInCurrentCell();
-        }
+  selectTextIfPresent() {
+    if (this.gridView.getCurrentCellSyllable()) {
+      console.log("Selecting text at cell " + this.gridView.currentCell);
+      this.gridView.selectTextInCurrentCell();
     }
+  }
 
-    moveToNextRow() {
-        this.gridView.moveToNextRow();
-        console.log("Moved to the next row. Current cell is now " + this.gridView.currentCell);
-        this.gridView.focusCurrentCell();
-    }
+  moveToNextRow() {
+    this.gridView.moveToNextRow();
+    console.log("Moved to the next row. Current cell is now " + this.gridView.currentCell);
+    this.gridView.focusCurrentCell();
+  }
 }
-

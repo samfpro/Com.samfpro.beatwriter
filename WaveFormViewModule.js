@@ -1,72 +1,65 @@
 class WaveFormViewModule extends Module {
   constructor(app, titleText, styleName, htmlFile, parentElement) {
     super(app, titleText, styleName, htmlFile, parentElement);
+
+    // Properties
     this.waveFormViewDisplay = null;
     this.waveformCanvas = null;
     this.regionCanvas = null;
     this.waveformCtx = null;
     this.regionCtx = null;
-    this.audioFile = null;
-    this.audioDurationInSeconds = 25;
+    this.audioDurationInSeconds = 0;
     this.waveFormDrawn = false;
-    
+
     this.cursorCanvas = null; // New canvas for the cursor
     this.cursorCtx = null; // Context for the cursor canvas
-
-
-    // Use AudioContext from the app instance
-    this.ac = app.ac;
+    
+    this.ac = app.ac; // Use AudioContext from the app instance
   }
 
   setupDOM() {
     super.setupDOM();
 
-    // Query and validate the DOM element for the waveform view display
     this.waveFormViewDisplay = this.moduleContent.querySelector("#wave-form-view-display");
     if (!this.waveFormViewDisplay) {
       console.warn("Waveform view display not found.");
       return;
-    }
+   }
+    
 
-    // Create canvas elements dynamically
+    // Create and append canvases
     this.waveformCanvas = document.createElement("canvas");
     this.waveformCanvas.id = "wave-form-canvas";
 
     this.regionCanvas = document.createElement("canvas");
     this.regionCanvas.id = "region-canvas";
 
-    this.cursorCanvas = document.createElement("canvas"); // Add cursor canvas
+    this.cursorCanvas = document.createElement("canvas");
     this.cursorCanvas.id = "cursor-canvas";
-    
-    // Append canvases to the waveFormViewDisplay
+
     this.waveFormViewDisplay.appendChild(this.waveformCanvas);
     this.waveFormViewDisplay.appendChild(this.regionCanvas);
-    this.waveFormViewDisplay.appendChild(this.cursorCanvas); // Append cursor canvas
-    // Get 2D contexts for both canvases
+    this.waveFormViewDisplay.appendChild(this.cursorCanvas);
+
+    // Get 2D contexts
     this.waveformCtx = this.waveformCanvas.getContext("2d");
     this.regionCtx = this.regionCanvas.getContext("2d");
-    this.cursorCtx = this.cursorCanvas.getContext("2d"); // Context for cursor
-
+    this.cursorCtx = this.cursorCanvas.getContext("2d");
   }
-
-  async updateWaveForm(audioFileUrl, start, end, bpm, leadIn) {
-    this.app.lc.show("Loading waveform.  Please wait....");
-    console.log("updateWaveform() called.");
-
-    this.audioFileUrl = audioFileUrl;
-    console.log("audioFileUrl: " + audioFileUrl);
-
-    if (!this.audioFileUrl || !this.ac) {
-      console.error("Audio file or AudioContext is missing.");
+  
+  async updateWaveForm() {
+    this.app.lc.show("loading waveform, please wait...");
+    const audioFileUrl = this.app.getModule("beatTrack").beatTrackUrl;
+    if (!audioFileUrl || !this.ac) {
+      console.error("Audio file URL or AudioContext is missing.");
       return;
     }
 
     const canvasWidth = this.waveformCanvas.width;
     const canvasHeight = this.waveformCanvas.height;
 
-    // Fetch and decode the audio file
     const xhr = new XMLHttpRequest();
-    xhr.open("GET", this.audioFileUrl, true);
+    xhr.open("GET", audioFileUrl, true);
     xhr.responseType = "arraybuffer";
 
     xhr.onload = () => {
@@ -74,9 +67,8 @@ class WaveFormViewModule extends Module {
         this.ac.decodeAudioData(
           xhr.response,
           (decodedData) => {
-            console.log(decodedData);
             this.audioDurationInSeconds = decodedData.duration;
-            console.log("audioDuration: " + this.audioDurationInSeconds);
+
             const data = decodedData.getChannelData(0);
             const step = Math.ceil(data.length / (canvasWidth * 16));
             const amp = canvasHeight / 2;
@@ -101,38 +93,29 @@ class WaveFormViewModule extends Module {
             }
             this.waveformCtx.stroke();
             this.waveFormDrawn = true;
-            console.log("markerParams: " + start + end + bpm + leadIn);
-            this.updateMarkers(start, end, bpm, leadIn);
+            this.updateMarkers();
             this.app.lc.hide();
           },
-          (error) => {
-            console.error("Error decoding audio data:", error);
-          }
+          (error) => console.error("Error decoding audio data:", error)
         );
       } else {
         console.error("Failed to fetch audio file, status:", xhr.status);
       }
     };
 
-    xhr.onerror = () => {
-      console.error("Network error while fetching audio file.");
-    };
-
+    xhr.onerror = () => console.error("Network error while fetching audio file.");
     xhr.send();
   }
 
-  updateMarkers(startPoint, endPoint, bpm, leadInBars) {
-    console.log("updateMarkers() called.");
+  updateMarkers() {
+    const bpm = this.app.getModule("playParameters").BPM;
+    const offsetBars = this.app.getModule("beatTrack").offsetBars;
+    const start = this.app.getModule("gridView").startMarkerPosition;
+    const end = this.app.getModule("gridView").endMarkerPosition;
 
-    if (!this.audioDurationInSeconds) {
-      console.error("Audio duration is missing.");
-      return;
-    }else if (!bpm) {
-      console.error("BPM is missing.");
-      return;
-    }else if (!this.waveFormDrawn){
-      console.log("awaiting waveform");
-      return;
+    if (!this.audioDurationInSeconds || !bpm || !this.waveFormDrawn) {
+        console.log("Skipping updateMarkers: Missing required data.");
+        return;
     }
 
     const canvasWidth = this.regionCanvas.width;
@@ -140,25 +123,29 @@ class WaveFormViewModule extends Module {
     const totalBars = this.audioDurationInSeconds / secondsPerBar;
     const barsToDisplay = 18;
     const totalRegionWidth = canvasWidth * (barsToDisplay / totalBars);
+    const startPositionInSeconds = offsetBars * secondsPerBar;
+    const xOffset = (startPositionInSeconds / this.audioDurationInSeconds) * canvasWidth;
 
-    const startPositionInSeconds = leadInBars * secondsPerBar;
-    const startPositionPercentage = (startPositionInSeconds / this.audioDurationInSeconds) * 100;
-    const xOffset = (startPositionPercentage / 100) * canvasWidth;
+    const xStart = xOffset + (start / barsToDisplay) * totalRegionWidth;
+    const xEnd = xOffset + ((end + 1) / barsToDisplay) * totalRegionWidth;
 
-    const xStart = xOffset + (startPoint / barsToDisplay) * totalRegionWidth;
-    const xEnd = xOffset + ((endPoint + 1) / barsToDisplay) * totalRegionWidth;
+    console.log("Canvas Width:", canvasWidth);
+    console.log("Seconds per Bar:", secondsPerBar);
+    console.log("Total Bars:", totalBars);
+    console.log("Bars to Display:", barsToDisplay);
+    console.log("Total Region Width:", totalRegionWidth);
+    console.log("Start Position in Seconds:", startPositionInSeconds);
+    console.log("X Offset:", xOffset);
+    console.log("X Start:", xStart);
+    console.log("X End:", xEnd);
 
     this.regionCtx.clearRect(0, 0, canvasWidth, this.regionCanvas.height);
-
-    // Draw yellow background
     this.regionCtx.fillStyle = "rgba(255, 255, 0, 0.5)";
     this.regionCtx.fillRect(xOffset, 0, totalRegionWidth, this.regionCanvas.height);
 
-    // Draw white region
     this.regionCtx.fillStyle = "rgba(255, 255, 255, 0.5)";
     this.regionCtx.fillRect(xStart, 0, xEnd - xStart, this.regionCanvas.height);
-    
-  }
-  
 
+    console.log("Drawing completed.");
+}
 }

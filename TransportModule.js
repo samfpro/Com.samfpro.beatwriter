@@ -1,6 +1,7 @@
 class TransportModule extends Module {
   constructor(app, titleText, styleName, htmlFile, parentElement) {
     super(app, titleText, styleName, htmlFile, parentElement);
+    this.isPlaying = false;
     this.playButton = null;
     this.pauseButton = null;
     this.stopButton = null;
@@ -18,6 +19,7 @@ class TransportModule extends Module {
     this.beatTrackGain = null;
     this.masterGain = null;
     this.metronomeGain = null;
+    this.compressor = null;
     this.recording = false;
     this.recordedChunks = [];
     this.mediaRecorder = null;
@@ -25,6 +27,7 @@ class TransportModule extends Module {
     this.cursorTimeouts = []; // Array to keep track of cursor update timeouts
     this.analyzers = []; // Array to store AnalyserNodes
     this.gains = []; // Array to store channel gains
+    this.mode = null;
   }
   
   setupDOM() {
@@ -51,9 +54,9 @@ class TransportModule extends Module {
     console.log("starting playback");
   this.playButton.classList.add("active");
   this.app.getModule("mixer").startPlayback();
-  let mode = this.app.getModule("disk").mode;
-  this.previousMode = mode;
-  mode = MODE_PLAY;
+  this.mode = this.app.getModule("mode").mode;
+  this.previousMode = this.mode;
+  this.app.getModule("mode").mode = MODE_PLAY;
 
   await this.resumeAudioContext();
 
@@ -84,6 +87,17 @@ class TransportModule extends Module {
     this.sawGain = this.ac.createGain();
     this.ttsGain = this.ac.createGain();
     this.beatTrackGain = this.ac.createGain();
+    this.compressor = this.ac.createDynamicsCompressor();
+
+// Set compressor parameters
+this.compressor.threshold.value = -50; // dB
+this.compressor.knee.value = 40;       // dB
+this.compressor.ratio.value = 12;      // Ratio
+this.compressor.attack.value = 0.003;  // Seconds
+this.compressor.release.value = 0.25;  // Seconds
+
+// Connect nodes: audio source -> compressor -> destination
+
     this.masterGain = this.ac.createGain();
     console.log(this.ac);
 
@@ -94,8 +108,8 @@ class TransportModule extends Module {
     this.metronomeGain.connect(this.masterGain);
     this.ttsGain.connect(this.masterGain);
     this.beatTrackGain.connect(this.masterGain);
-    this.masterGain.connect(this.ac.destination);
-
+    this.masterGain.connect(this.compressor);
+    this.compressor.connect(this.ac.destination);
     this.metronomeGain.gain.setValueAtTime(0.5, this.ac.currentTime);
     this.ttsGain.gain.setValueAtTime(1, this.ac.currentTime);
     this.beatTrackGain.gain.setValueAtTime(0.5, this.ac.currentTime);
@@ -126,15 +140,15 @@ class TransportModule extends Module {
   
   
  async schedulePlayback(beatTrackNode) {
-  console.log("scheduling playback");
-
-  const diskModule = this.app.getModule("disk");
-  const leadInMS = diskModule.beatTrackParameterValues[0].currentValue;
-  const leadInBars = diskModule.beatTrackParameterValues[1].currentValue;
-  const bpm = diskModule.playParameterValues[0].currentValue;
-  const cells = this.app.getModule("gridView").cells;
-  const startPos = diskModule.startMarkerPosition * 16;
-  const endPos = (diskModule.endMarkerPosition * 16) + 16;
+   const beatTrack = this.app.getModule("beatTrack");
+const playParams = this.app.getModule("playParameters");
+const gridView = this.app.getModule("gridView");
+  const leadInMS = beatTrack.offsetMS;
+  const leadInBars = beatTrack.offsetBars;
+  const bpm = playParams.BPM;
+  const cells = gridView.cells;
+  const startPos = gridView.startMarkerPosition * 16;
+  const endPos = (gridView.endMarkerPosition * 16) + 16;
   const stepsToPlay = endPos - startPos;
 
   console.log("The number of steps to play is: " + stepsToPlay);
@@ -228,7 +242,6 @@ async stopSequencer() {
   }
 
 async createBeatTrack() {
-  const diskModule = this.app.getModule("disk");
   
   return new Promise((resolve, reject) => {
     console.log("creating beatTrackNode");
@@ -243,7 +256,7 @@ async createBeatTrack() {
 
     // If buffer doesn't exist, load it
     const request = new XMLHttpRequest();
-    request.open("GET", diskModule.beatTrackUrl, true);
+    request.open("GET", this.app.getModule("beatTrack").beatTrackUrl, true);
     request.responseType = "arraybuffer";
 
     request.onload = () => {
@@ -292,9 +305,9 @@ async createBeatTrack() {
   }
 
   async scheduleTts(time, textToConvert) {
-    const diskModule = this.app.getModule("disk");
-    const ttsVoice = diskModule.playParameterValues[1].currentValue;
-    const ttsRate = diskModule.playParameterValues[2].currentValue;
+    const playParams = this.app.getModule("playParameters");
+    const ttsVoice = playParams.playParameterValues[1].currentValue;
+    const ttsRate = playParams.playParameterValues[2].currentValue;
     console.log(`Scheduling TTS for "${textToConvert}" at ${time}s...`);
     try {
       const trimmedText = textToConvert.trim();

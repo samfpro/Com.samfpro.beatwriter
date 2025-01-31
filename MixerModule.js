@@ -195,6 +195,8 @@ class MixerModule extends Module {
       console.error("moduleContent is not defined. Event listeners cannot be attached.");
       return;
     }
+    
+    
 
     const channelContainers = container.querySelectorAll(".channel-container");
     channelContainers.forEach((channelContainer, index) => {
@@ -207,7 +209,9 @@ class MixerModule extends Module {
       this.channels.push(channel);
     });
   }
-
+loadMixerSettings(){
+      return;
+    }
   startPlayback() {
   this.channels.forEach((channel) => channel.startMeterAnimation());
   // Assuming transport handles playback

@@ -15,7 +15,7 @@ class DiskModule extends Module {
     this.propertiesDisplay= null;
     this.ac = app.ac;
     this.updateWaveFormMarkers = this.updateWaveFormMarkers.bind(this);
-    
+    this.fm = this.app.getModule("fileManager");
         // Initialize the beatTrackParameterValues array
     this.beatTrackParameterValues = [
       new ParameterValue("LeadInMS", "OFSTMS", 0, 10000, 0, "number", this.updateWaveFormMarkers),
@@ -44,12 +44,12 @@ class DiskModule extends Module {
     this.propertiesDisplay = this.moduleContent.querySelector("#properties-display");
     if (this.propertiesDisplay) {
       console.log("propertiesDisplay successfully initialized.");
-      this.beatTrackUrl = "beatTrack/Turtletuck_83BPM.mp3";
+      this._beatTrackUrl = ;
       console.log("setting mode");
       this.mode = MODE_WRITE;
       this.propertiesDisplay.addEventListener("touchmove", (event) => {
         event.stopPropagation();
-      })
+      });
       
     } else {
       console.error("propertiesDisplay element is not available.");
@@ -110,35 +110,63 @@ class DiskModule extends Module {
         Lead In Bars: ${this.beatTrackParameterValues[1].currentValue || ""} <br>
         Play Rate: ${this.beatTrackParameterValues[2].currentValue || ""} <br>
         Auto Syllables: ${autoSylText || ""}<br>
-       
-      
         Mode: ${modeText || ""}
       `;
+      this.fm.autosaveProject();
     } else {
       console.error("Properties display element is not available for update.");
     }
   }
 
   // Getters and setters for properties
-  get projectName() {
-    return this._projectName;
+get projectName() {
+  return this._projectName;
+}
+
+set projectName(value) {
+  this._projectName = value;
+  const fileManagerModule = this.app.getModule("fileManager");
+  fileManagerModule.projectNameInput.textContent = value;
+  this.updatePropertiesDisplay();
+}
+
+get projectUrl() {
+  return this._projectUrl;
+}
+
+set projectUrl(value) {
+  this._projectUrl = value;
+
+  // Extract the project name from the URL
+  const projectName = this.extractProjectNameFromUrl(value);
+
+  // Set the extracted project name
+  if (projectName) {
+    this.projectName = projectName; // This will trigger the projectName setter
   }
 
-  set projectName(value) {
-    this._projectName = value;
-    const fileManagerModule = this.app.getModule("fileManager");
-    fileManagerModule.projectNameInput.textContent = value;
-    this.updatePropertiesDisplay();
+  this.updatePropertiesDisplay();
+}
+
+// Helper method to extract the project name from a URL
+extractProjectNameFromUrl(url) {
+  try {
+    // Decode the URL
+    const decodedUrl = decodeURIComponent(url);
+
+    // Extract the file path after "document/"
+    const match = decodedUrl.match(/document\/[^%]*%3A([^/]+)\/([^/]+)\.json/);
+
+    if (match && match[2]) {
+      return match[2]; // Return the extracted project name (e.g., "Muuscin")
+    }
+  } catch (error) {
+    console.error("Error extracting project name from URL:", error);
   }
 
-  get projectUrl() {
-    return this._projectUrl;
-  }
+  return null; // Return null if extraction fails
+}
 
-  set projectUrl(value) {
-    this._projectUrl = value;
-    this.updatePropertiesDisplay();
-  }
 
   get beatTrackUrl() {
     return this._beatTrackUrl;

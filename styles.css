@@ -8,7 +8,6 @@ body {
   font-family: Arial, sans-serif;
 
   /* Create a rotated text pattern */
-  background: black; /* Black base */
   position: relative;
 }
 
@@ -55,13 +54,13 @@ body::before {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
+  width: 800px;
+  height: 700px;
   background-color: rgba(0, 0, 0, 0.5);
   z-index: 10000;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   color: white;
   font-size: 1.5em;
   font-family: Arial, sans-serif;
@@ -83,17 +82,17 @@ body::before {
 
 /* Color for columns 5 and 13 */
 #grid-container > .grid-cell:nth-child(8n + 1){
-   background-color: rgba(144, 144, 144, 0.2);
+   background-color: rgba(15, 144, 15, 0.1);
 } 
 
 /* Color for columns 1 and 9 */
 #grid-container > .grid-cell:nth-child(8n + 5){
-  background-color: rgba(144, 238, 144, 0.2); 
+  background-color: rgba(144, 20, 144, 0.1); 
 }
 
 /* Color for columns 3, 7, 11, and 15 */
 #grid-container > .grid-cell:nth-child(4n + 3){
-   background-color: rgba(173, 216, 230, 0.2); 
+   background-color: rgba(173, 216, 230, 0.1); 
 }
 
 @font-face {
@@ -359,10 +358,11 @@ body::before {
 .file-manager-module {
   
 }
-.title-module, .mixer-module, .disk-module, .file-manager-module, .beat-track-module, .mode-module, .transport-module, .play-parameters-module{
+.title-module, .mixer-module, .project-manager-module, .beat-track-module, .mode-module, .transport-module, .play-parameters-module{
     min-height: 70px; 
     height: 70px;
     max-height: 70px;
+  position: relative;
 }
 
 .module-content{
@@ -420,7 +420,7 @@ body::before {
   border-left-color: gainsboro;
 }
 
-#beat-track-name-display{
+#beat-track-name-display, #project-name-input{
   overflow: hidden; /* Hide content that overflows the container */
   text-overflow: clip; /* Clips the overflow text without adding ellipsis */
   white-space: nowrap; /* Prevent text from wrapping to the next line */
@@ -503,7 +503,7 @@ body::before {
 
 }
 
-#version{
+#version{u
     font-family: "Syne";
     font-size: 12px;
     color: cadetblue;
@@ -539,10 +539,13 @@ body::before {
     padding-right: 5px;
 }
 
-.properties-display {
+#properties-display {
     height: 35px;
     overflow: auto;
     width: 100px;
+  position: absolute;
+  left: 100px;
+  bottom: 20px;
 }
 
 .display {
@@ -556,6 +559,12 @@ body::before {
 #project-name-input{
     color: cornflowerblue;
     height: 14px;
+  width: 50px;
+}
+
+.project-manager-module-content{
+  position: relative;
+  align-content: 
 }
 
 
@@ -833,7 +842,7 @@ body::before {
 }
 
 .solo.active{
-     background-color: greenyellow;
+  background-color: greenyellow;
   color: whitesmoke;
   box-shadow: 0 0 10px greenyellow;
 
@@ -889,4 +898,32 @@ body::before {
     max-width: 80px;
     background-color: goldenrod;
     
+}
+
+.rusty-metal {
+  .distressed-surface {
+  width: 300px;
+  height: 300px;
+  background: #d3d3d3; /* Base color (light gray) */
+  background-image: 
+    url('https://www.transparenttextures.com/patterns/asfalt-dark.png'), /* Add a distressed texture */
+    linear-gradient(135deg, #c0c0c0 25%, #e0e0e0 75%); /* Gradient for variation */
+  background-blend-mode: multiply;
+  border: 1px solid #999; /* Slight border for definition */
+  filter: contrast(85%) brightness(95%); /* Muted and darker look */
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2); /* Inset shadow for depth */
+  overflow: hidden;
+}
+
+.distressed-surface:before
+  {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url('https://www.transparenttextures.com/patterns/noise.png'); /* Subtle noise overlay */
+  opacity: 0.2; /* Reduce visibility */
+  pointer-events: none; /* Allow interaction with the main element */
 }

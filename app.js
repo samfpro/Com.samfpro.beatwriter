@@ -5,7 +5,7 @@ class App {
     this.initializationOrder = [
          {
         name: "title",
-        class: FileManagerModule,
+        class: TitleModule,
         args: [
           "About",
           "title-module",
@@ -13,27 +13,7 @@ class App {
           document.getElementById("cp-top-row")
         ]
       },
-      {
-        name: "fileManager",
-        class: FileManagerModule,
-        args: [
-          "File Manager",
-          "file-manager-module",
-          "html/fileManagerModule.html", // Updated path
-          document.getElementById("cp-top-row")
-        ]
-      },
-      {
-        name: "beatTrack",
-        class: BeatTrackModule,
-        args: [
-          "Beat Track",
-          "beat-track-module",
-          "html/beatTrackModule.html", // Updated path
-          document.getElementById("cp-top-row")
-        ]
-      },
-      {
+                {
         name: "gridView",
         class: GridViewModule,
         args: [
@@ -53,7 +33,7 @@ class App {
           document.getElementById("cp-bottom-row")
         ]
       },
-  {
+           {
         name: "playParameters",
         class: PlayParametersModule,
         args: [
@@ -64,6 +44,26 @@ class App {
         ]
       },
           {
+        name: "beatTrack",
+        class: BeatTrackModule,
+        args: [
+          "Beat Track",
+          "beat-track-module",
+          "html/beatTrackModule.html", // Updated path
+          document.getElementById("cp-top-row")
+        ]
+      },
+          {
+        name: "waveFormView",
+        class: WaveFormViewModule,
+        args: [
+          "Wave Form View",
+          "wave-form-view-module",
+          "html/waveFormViewModule.html", // Updated path
+          document.getElementById("cp-wave-form-view")
+        ]
+      },
+                    {
         name: "transport",
         class: TransportModule,
         args: [
@@ -83,24 +83,14 @@ class App {
           document.getElementById("cp-bottom-row")
         ]
       },
-    {
-        name: "waveFormView",
-        class: WaveFormViewModule,
-        args: [
-          "Wave Form View",
-          "wave-form-view-module",
-          "html/waveFormViewModule.html", // Updated path
-          document.getElementById("cp-wave-form-view")
-        ]
-      },
       {
-        name: "disk",
-        class: DiskModule,
+        name: "projectManager",
+        class: ProjectManagerModule,
         args: [
-          "Disk",
-          "disk-module",
-          "html/diskModule.html", // Updated path
-          document.getElementById("cp-bottom-row")
+          "Project Manager",
+          "project-manager-module",
+          "html/projectManagerModule.html", // Updated path
+          document.getElementById("cp-top-row")
         ]
       }
     ];
@@ -117,7 +107,16 @@ class App {
       this.modules[name] = module; // Store the initialized module
     }
     console.log(`[${new Date().toISOString()}] All modules instantiated and initialized`);
-    this.lc.hide();    
+    this.lc.hide();
+          const bt = this.getModule("beatTrack");
+          const gv = this.getModule("gridView");
+          gv.generateGrid();
+          const wfv = this.getModule("waveFormView");
+          wfv.updateWaveForm();
+          const fm =this.getModule("projectManager");
+          fm.loadAutosave();
+          const mm = this.getModule("mode");
+          mm.mode = MODE_WRITE;
   }
 
   getModule(name) {

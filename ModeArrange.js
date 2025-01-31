@@ -1,6 +1,6 @@
 class ModeArrange {
-  constructor(app) {
-    this.app = app;
+  constructor(gridView) {
+    this.gridView = gridView; // Use GridViewModule instance directly
     this.moveFromIndex = null;
     this.moveToIndex = null;
   }
@@ -13,35 +13,34 @@ class ModeArrange {
       console.log("Set moveFromIndex to", this.moveFromIndex);
       this.highlightPossibleMoves(cellIndex);
     } else {
-      if (this.app.getModule("gridView").cells[cellIndex].isCandidate == true) {
+      if (this.gridView.cells[cellIndex].isCandidate === true) {
         this.moveToIndex = cellIndex;
         console.log("Set moveToIndex to", this.moveToIndex);
         this.performMove();
-      this.resetCandidateCells();
-      this.moveFromIndex = null;
-      this.moveToIndex = null;
+        this.resetCandidateCells();
+        this.moveFromIndex = null;
+        this.moveToIndex = null;
       }
     }
   }
 
   highlightPossibleMoves(cellIndex) {
-        cellIndex = parseInt(cellIndex);
+    cellIndex = parseInt(cellIndex);
     console.log("Highlighting possible moves...");
     let blanksToRight = this.countBlanksToRight(cellIndex);
     let blanksToLeft = this.countBlanksToLeft(cellIndex);
     console.log("Blanks to the right:", blanksToRight);
     console.log("Blanks to the left:", blanksToLeft);
+
     // Highlight possible moves to the right
-
- for (let i = 1; i <= blanksToRight; i++) {
-  this.app.getModule("gridView").cells[cellIndex + i].isCandidate = true;
-}
-
-    for (let i = 1; i <= blanksToLeft; i++) {
-      this.app.getModule("gridView").cells[cellIndex - i].isCandidate = true;
-
+    for (let i = 1; i <= blanksToRight; i++) {
+      this.gridView.cells[cellIndex + i].isCandidate = true;
     }
 
+    // Highlight possible moves to the left
+    for (let i = 1; i <= blanksToLeft; i++) {
+      this.gridView.cells[cellIndex - i].isCandidate = true;
+    }
   }
 
   countBlanksToRight(cellIndex) {
@@ -51,16 +50,15 @@ class ModeArrange {
     console.log("cell index: " + cellIndex);
     let firstCellToRight = cellIndex + 1;
     console.log("firstCellToRight: " + firstCellToRight);
-    
+
     let blanks = 0;
 
     for (let i = firstCellToRight; i < rowEnd; i++) {
-    console.log("counting, i= " + i + "rowEnd = " + rowEnd);
+      console.log("counting, i= " + i + "rowEnd = " + rowEnd);
 
-    if (this.app.getModule("gridView").cells[i].syllable.trim() === "") {
-        
-console.log("syllable: " +this.app.getModule("gridView").cells[i].syllable.trim());
-blanks++;
+      if (this.gridView.cells[i].syllable.trim() === "") {
+        console.log("syllable: " + this.gridView.cells[i].syllable.trim());
+        blanks++;
       }
     }
 
@@ -73,8 +71,8 @@ blanks++;
     const rowStart = Math.floor(cellIndex / 16) * 16;
     let blanks = 0;
 
-    for (let i = cellIndex - 1; i >= rowStart ; i--) {
-      if (this.app.getModule("gridView").cells[i].syllable.trim() === "") {
+    for (let i = cellIndex - 1; i >= rowStart; i--) {
+      if (this.gridView.cells[i].syllable.trim() === "") {
         blanks++;
       }
     }
@@ -91,7 +89,7 @@ blanks++;
     console.log("Move distance:", moveDistance);
     console.log("Blanks to move:", blanksToMove);
 
-    const syllablesArray = this.app.getModule("gridView").cells.map(cell => cell.syllable);
+    const syllablesArray = this.gridView.cells.map(cell => cell.syllable);
 
     if (moveDistance > 0) {
       // Moving to the right
@@ -101,37 +99,38 @@ blanks++;
       this.moveSyllablesLeft(syllablesArray, blanksToMove);
     }
 
-    // Update the syllables property in beatwriter.cells
-    this.app.getModule("gridView").cells.forEach((cell, index) => {
+    // Update the syllables property in gridView.cells
+    this.gridView.cells.forEach((cell, index) => {
       cell.syllable = syllablesArray[index];
     });
   }
 
   moveSyllablesRight(syllablesArray, blanksToMove) {
-  let blanksRemoved = 0;
-  for (let i = this.moveFromIndex; i < syllablesArray.length && blanksRemoved < blanksToMove; i++) {
-    if (syllablesArray[i].trim() === '') {
-      syllablesArray.splice(i, 1);
-      blanksRemoved++;
-      i--;
+    let blanksRemoved = 0;
+    for (let i = this.moveFromIndex; i < syllablesArray.length && blanksRemoved < blanksToMove; i++) {
+      if (syllablesArray[i].trim() === '') {
+        syllablesArray.splice(i, 1);
+        blanksRemoved++;
+        i--;
+      }
     }
+    syllablesArray.splice(this.moveFromIndex, 0, ...Array(blanksToMove).fill(''));
   }
-  syllablesArray.splice(this.moveFromIndex, 0, ...Array(blanksToMove).fill(''));
-}
 
-moveSyllablesLeft(syllablesArray, blanksToMove) {
-  let blanksRemoved = 0;
-  for (let i = this.moveFromIndex; i >= 0 && blanksRemoved < blanksToMove; i--) {
-    if (syllablesArray[i].trim() === '') {
-      syllablesArray.splice(i, 1);
-      blanksRemoved++;
-      i++;
+  moveSyllablesLeft(syllablesArray, blanksToMove) {
+    let blanksRemoved = 0;
+    for (let i = this.moveFromIndex; i >= 0 && blanksRemoved < blanksToMove; i--) {
+      if (syllablesArray[i].trim() === '') {
+        syllablesArray.splice(i, 1);
+        blanksRemoved++;
+        i++;
+      }
     }
+    syllablesArray.splice(this.moveToIndex + 1, 0, ...Array(blanksToMove).fill(''));
   }
-  syllablesArray.splice(this.moveToIndex + 1, 0, ...Array(blanksToMove).fill(''));
-}
+
   resetCandidateCells() {
-    this.app.getModule("gridView").cells.forEach(cell => {
+    this.gridView.cells.forEach(cell => {
       cell.isCandidate = false;
     });
   }

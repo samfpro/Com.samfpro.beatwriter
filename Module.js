@@ -18,7 +18,7 @@ class Module {
     this.moduleTitle = document.createElement("div");
     this.moduleContent = document.createElement("div");
 
-    this.moduleContainer.classList.add("module-container", "outset", this.styleName);
+    this.moduleContainer.classList.add("module-container", "rusty-metal", "outset", this.styleName);
     this.moduleTitle.classList.add("module-title");
     this.moduleTitle.innerText = this.titleText;
     this.moduleContent.classList.add("module-content");
