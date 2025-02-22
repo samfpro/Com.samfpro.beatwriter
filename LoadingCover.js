@@ -17,6 +17,9 @@ class LoadingCover {
     // Counter for active operations
     this.operationCount = 0;
 
+    // Flag to track visibility
+    this.isVisible = false;
+
     // Adjust centering dynamically on scroll or resize
     window.addEventListener("resize", this.updatePosition.bind(this));
     window.addEventListener("scroll", this.updatePosition.bind(this));
@@ -26,6 +29,10 @@ class LoadingCover {
 
   // Update position to center text on the viewport
   updatePosition() {
+    if (!this.isVisible) {
+        return; // Skip position update if the cover is hidden
+    }
+
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
 
@@ -47,6 +54,7 @@ class LoadingCover {
     this.updatePosition(); // Ensure correct position before displaying
     this.cover.style.visibility = "visible";
     this.cover.style.opacity = "1";
+    this.isVisible = true; // Set visibility flag to true
 
     console.log("LoadingCover is now visible.");
   }
@@ -62,6 +70,7 @@ class LoadingCover {
     if (this.operationCount === 0) {
       this.cover.style.opacity = "0";
       this.cover.style.visibility = "hidden";
+      this.isVisible = false; // Set visibility flag to false
       console.log("LoadingCover is now hidden.");
     } else {
       console.log("LoadingCover is still visible due to ongoing operations.");

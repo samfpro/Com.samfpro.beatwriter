@@ -1,42 +1,62 @@
 class Cell {
-    constructor(gridContainer, index) {
-        this.gridCell = null;
+    constructor(app, gridContainer, cellEditorContainer, index) {
+        this.app = app;
         this.gridContainer = gridContainer;
+        this.cellEditorContainer = cellEditorContainer;
+        this.pm = null;
+        
+      //properties to save to project  
         this.index = index;
         this._syllable = "";
-        this.isCurrentCell = false;
+        this._syllableOverride = false;
+        this._timeOffset = 0;
+        this._voiceRate = 3;
+        this._emphasize = false;
+      //  
+        this._isCurrentCell = false;
         this._isPlayable = false;
         this._isCandidate = false;
         this._stepPlaying = false;
-        this._mode = null;
+        this._mode = MODE_WRITE;
         
-
-        this.setupDOM();
+        this.ce_syllableOverrideSwitch = this.cellEditorContainer.querySelector("#syllable-override-switch");
+        this.ce_timeOffsetDisplay = this.cellEditorContainer.querySelector("#time-offset-display");
+        this.ce_voiceRateDisplay = this.cellEditorContainer.querySelector("#voice-rate-display");
+        this.ce_emphasizeSwitch = this.cellEditorContainer.querySelector("#emphasize-switch");
+        
+        
+        this.gridCell = this.createDOMElement();
+        gridContainer.appendChild(this.gridCell);
     }
 
-    setupDOM() {
-        this.gridCell = document.createElement("div");
-        this.gridCell.classList.add("grid-cell");
-        this.gridCell.dataset.index = this.index;
-        this.gridCell.setAttribute("autocapitalize", "none");
-        this.gridCell.setAttribute("autocorrect", "off");
-        this.gridCell.setAttribute("spellcheck", "false");
-        this.gridCell.setAttribute("autocomplete", "off");
-        this.gridContainer.appendChild(this.gridCell);
-        this.mode = MODE_WRITE;
-    }
-
-    get isPlayable() {
+  createDOMElement() {
+    const el = document.createElement("div");
+    el.classList.add("grid-cell");
+    el.dataset.index = this.index;
+      el.contentEditable = true;
+    return el;
+  }
+    
+    get isPlayable(){
         return this._isPlayable;
     }
-
-    set isPlayable(value) {
+    
+    set isPlayable(value){
         this._isPlayable = value;
-        if (value == true) {
+        if (value == true){
             this.gridCell.classList.add("is-playable");
         } else {
             this.gridCell.classList.remove("is-playable");
         }
+    }
+    
+    get isCurrentCell(){
+        return this._isCurrentCell;
+    }
+    
+    set isCurrentCell(value){
+        this._isCurrentCell = value;
+        this.ce_timeOffsetDisplay.textContent = this._timeOffset;
     }
     
     get isCandidate() {
@@ -57,6 +77,7 @@ class Cell {
     }
 
     set syllable(value) {
+        console.log("syllable setter setting to" + value);
         this._syllable = value;
         this.gridCell.textContent = value;
     }
@@ -71,7 +92,7 @@ class Cell {
         if (value == true) {
             this.gridCell.classList.add("step-playing");
         } else {
-            this.gridCell.classList.remove("step-playing");
+        this.gridCell.classList.remove("step-playing");
         }
     }
     
@@ -89,21 +110,44 @@ class Cell {
             this.gridCell.classList.remove("mode-write");
             this.gridCell.classList.add("mode-arrange");
             this.gridCell.contentEditable = false;
-       
         }
     }
     /**
      * Serialize the Cell's state into a JSON-compatible object.
      * @returns {Object} Serialized state of the Cell.
      */
+   get timeOffset() {
+       return this._timeOffset;
+   }
+    
+    set timeOffset(value){
+        this._timeOffset = value;
+        this.ce_timeOffsetDisplay.textContent = value;
+    }
+  updateFromData(data) {
+    // Update all properties atomically
+      this.syllable = data.syllable || "";
+      this._syllableOverride = data.syllableOverride || false;
+      this._timeOffset = data.timeOffset || 0;
+      this._voiceRate = data.voiceRate || 3;
+      this._emphasize = data.emphasisze || false;
+        
+    // Direct DOM manipulation stays within class
+    this.gridCell.textContent = this.syllable;
+  }
+    
+    destroy() {
+        this.gridCell.remove();
+  }
+    
     toJSON() {
         return {
             index: this.index,
             syllable: this._syllable,
-            isPlayable: this._isPlayable,
-            isCandidate: this._isCandidate,
-            stepPlaying: this._stepPlaying,
-            mode: this._mode
+            syllableOverride: this._syllableOverride,
+            timeOffset: this._timeOffset,
+            voiceRate: this._voiceRate,
+            emphasize: this._emphasize
         };
     }
 
@@ -112,15 +156,6 @@ class Cell {
      * @param {Object} data Serialized state of a Cell.
      * @returns {Cell} Restored Cell instance.
      */
-    static fromJSON(data, gridContainer) {
-        const cell = new Cell(gridContainer, data.index);
-        cell.syllable = data.syllable || "";
-        cell.isPlayable = data.isPlayable || false;
-        cell.isCandidate = data.isCandidate || false;
-        cell.isEditable = data.isEditable || false;
-        cell.stepPlaying = data.stepPlaying || false;
-        return cell;
-    }
 }
 
 class StartMarker{
@@ -154,7 +189,6 @@ class EndMarker {
     setupDOM(){
         this.endMarkerCell = document.createElement("div");
         this.endMarkerCell.classList.add("end-marker")
-        this.endMarkerContainer = this.endMarkerContainer;
         this.endMarkerContainer.appendChild(this.endMarkerCell);
         
     }

@@ -1,16 +1,40 @@
+const MODE_WRITE = 0;
+const MODE_ARRANGE = 1;
+const MODE_PLAY = 2;
+
 class App {
-  constructor() {
-    this.lc = new LoadingCover();
-          this.modules = {}; // Store module instances here
-    this.initializationOrder = [
-         {
-        name: "title",
+        constructor() {
+                this.lc = new LoadingCover();
+                this.modules = {};
+                this.initializationOrder = [
+                {
+                 name: "title",
         class: TitleModule,
         args: [
           "About",
           "title-module",
           "html/titleModule.html", // Updated path
           document.getElementById("cp-top-row")
+        ]
+      },
+            {
+        name: "beatTrack",
+        class: BeatTrackModule,
+        args: [
+          "Beat Track",
+          "beat-track-module",
+          "html/beatTrackModule.html", // Updated path
+          document.getElementById("cp-top-row")
+        ]
+      },
+          {
+        name: "waveFormView",
+        class: WaveFormViewModule,
+        args: [
+          "Wave Form View",
+          "wave-form-view-module",
+          "html/waveFormViewModule.html", // Updated path
+          document.getElementById("cp-wave-form-view")
         ]
       },
                 {
@@ -41,26 +65,6 @@ class App {
           "play-parameters-module",
           "html/playParametersModule.html", // Updated path
           document.getElementById("cp-bottom-row")
-        ]
-      },
-          {
-        name: "beatTrack",
-        class: BeatTrackModule,
-        args: [
-          "Beat Track",
-          "beat-track-module",
-          "html/beatTrackModule.html", // Updated path
-          document.getElementById("cp-top-row")
-        ]
-      },
-          {
-        name: "waveFormView",
-        class: WaveFormViewModule,
-        args: [
-          "Wave Form View",
-          "wave-form-view-module",
-          "html/waveFormViewModule.html", // Updated path
-          document.getElementById("cp-wave-form-view")
         ]
       },
                     {
@@ -95,33 +99,75 @@ class App {
       }
     ];
     console.log(`[${new Date().toISOString()}] Starting module initialization`);
-    this.initializeModules();
-    this.ac = new AudioContext();
+    this.ac = new AudioContext();  // Keep this early if needed
+    this.initializeApp();
   }
 
-  async initializeModules() {
-          this.lc.show("Loading Modules, please wait...");
-          for (const { name, class: Module, args } of this.initializationOrder) {
-      const module = new Module(this, ...args);
-      await module.initializeWithHtml(); // Ensure the module is fully initialized before moving on
-      this.modules[name] = module; // Store the initialized module
+  async initializeApp() {
+    try {
+      console.log(`[${new Date().toISOString()}] Starting module initialization`);
+      await this.initializeModules();
+      await this.postInitializationSetup();
+    } catch (error) {
+      console.error(`[${new Date().toISOString()}] Critical initialization error:`, error);
+      this.lc.show("Initialization failed - please refresh");
     }
-    console.log(`[${new Date().toISOString()}] All modules instantiated and initialized`);
-    this.lc.hide();
-          const bt = this.getModule("beatTrack");
-          const gv = this.getModule("gridView");
-          gv.generateGrid();
-          const wfv = this.getModule("waveFormView");
-          wfv.updateWaveForm();
-          const fm =this.getModule("projectManager");
-          fm.loadAutosave();
-          const mm = this.getModule("mode");
-          mm.mode = MODE_WRITE;
   }
+        
+        async initializeModules() {
+                this.lc.show("Loading Modules, please wait...");
+                // Initialize modules sequentially to maintain order
+                for (const { name, class: Module, args } of this.initializationOrder) {
+                        try {
+        const module = new Module(this, ...args);
+        await module.initialize(); // Use full initialization flow
+        this.modules[name] = module;
+        console.log(`[${new Date().toISOString()}] ${name} module initialized`);
+      } catch (error) {
+        console.error(`[${new Date().toISOString()}] Failed to initialize ${name}:`, error);
+        throw error; // Rethrow to stop initialization
+      }
+    }
+    
+    this.lc.hide();
+  }
+
+  async postInitializationSetup() {
+    // Wait for all modules to settle
+    await new Promise(resolve => setTimeout(resolve, 50));
+    
+    // Access modules through safe getter
+    const fm = this.getModule("projectManager");
+    const gv = this.getModule("gridView");
+    const mm = this.getModule("mode");
+    const bt = this.getModule("beatTrack");
+          const pp = this.getModule("playParameters");
+    // Ensure safe access pattern
+    if (!fm || !gv || !mm || !bt) {
+      throw new Error("Critical modules missing");
+    }
+
+   if (!bt.beatTrackUrl) {
+      bt.beatTrackUrl = "beatTrack/Turtletuck_83BPM.mp3";
+      pp.BPM = 83;      
+    }
+          console.log("generating Grid");
+          gv.generateGrid();
+          gv.startMarkerPosition = 2;
+          gv.endMarkerPosition = 4;
+          
+          mm.mode = MODE_ARRANGE;
+          mm.previousMode = MODE_WRITE;
+            }
 
   getModule(name) {
-    return this.modules[name];
+    const module = this.modules[name];
+    if (!module) {
+      console.warn(`Module ${name} not found`);
+    }
+    return module;
   }
 }
 
-const app = new App();
+// Startup pattern
+const app = new App(); // Let constructor handle async initialization

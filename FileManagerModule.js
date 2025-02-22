@@ -87,7 +87,7 @@ class ManagerModule extends Module {
   }
 
   autosaveProject() {
-    const disk = this.app.getModule("disk");
+    const  = this.app.getModule("disk");
     const gridView = this.app.getModule("gridView");
     const mixer = this.app.getModule("mixer");
 

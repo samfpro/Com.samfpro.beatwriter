@@ -7,14 +7,22 @@ class BeatTrackModule extends Module {
     this.detectBpmButton = null;
     this.bpmMultButton = null;
     this.bpmDivButton = null;
+    
     this.valueSelectorContainer = null;
     this.parameterValues = [
-      new ParameterValue("LeadInMS", "OFSTMS", 0, 10000, 0, "number", this.updateWaveFormMarkers),
-      new ParameterValue("LeadInBars", "OFSTBR", 0, 64, 0, "number", this.updateWaveFormMarkers),
+      new ParameterValue("offsetMS", "OFSTMS", 0, 10000, 0, "number", this.updateWaveFormMarkers),
+      new ParameterValue("offsetBars", "OFSTBR", 0, 64, 0, "number", (param) => this.handleOffsetBarsChanged(param)),
       new ParameterValue("PlayRate", "PLAYRT", 0, 300, 100, "number", this.updateWaveFormMarkers)
     ];
+    this._offsetBars = 0;
+    this._offsetMS = 0;
+    this._playRate = 0;
+    
     this._beatTrackUrl = null;
     this.updateWaveFormMarkers = this.updateWaveFormMarkers.bind(this);
+    this.handleOffsetBarsChanged = this.handleOffsetBarsChanged.bind(this);
+    window.beatTrackModule = this;
+    
   }
   // Override setupDOM to handle the DOM elements and event listeners
   setupDOM() {
@@ -50,13 +58,28 @@ class BeatTrackModule extends Module {
     this.bpmDivButton?.addEventListener("click", () => this.handleBPMDivide());
     this.bpmCommitButton?.addEventListener("click", () => this.handleBPMCommit());
     this.loadValueSelector();
-    this.beatTrackUrl = "beatTrack/Turtletuck_83BPM.mp3";
   }
+  
+  handleOffsetBarsChanged(){
+      this._offsetBars = this.parameterValues[1].currentValue;
+    if (this.valueSelector.currentIndex == 1){
+      this.valueSelector.display.textContent = value;
+    }
+    this.updateWaveFormMarkers();
+    this.app.getModule("projectManager").autosaveProject();
+  }
+  
   
   updateWaveFormMarkers = () => {
   const wf = this.app.getModule("waveFormView");
   if (wf) {
     wf.updateMarkers();
+  }
+};
+  updateWaveForm = () => {
+  const wf = this.app.getModule("waveFormView");
+  if (wf) {
+    wf.updateWaveForm();
   }
 };
   // Open the file picker via Android interface or fallback
@@ -73,12 +96,8 @@ class BeatTrackModule extends Module {
     console.log("File selected:", fileUrl);
 
     // Update DiskModule with the new beat track URL
-    const diskModule = this.app.getModule("disk");
-    if (diskModule) {
-      diskModule.beatTrackUrl = fileUrl;
-    } else {
-      console.warn("DiskModule not found in app.");
-    }
+    
+    this.beatTrackUrl = fileUrl;
 
     // Update the display with the selected beat track name
     const fileName = fileUrl.split("/").pop(); // Extract the file name from URL
@@ -182,7 +201,7 @@ _loadAudioFile(fileUrl) {
   set beatTrackUrl(value){
     this._beatTrackUrl = value;
     this.beatTrackNameDisplay.textContent = value;
-   this.updateWaveFormMarkers();
+   this.updateWaveForm();
   }
   
   get offsetMS(){
@@ -202,11 +221,8 @@ _loadAudioFile(fileUrl) {
   }
   
   set offsetBars(value){
-    this.parameterValues[1].currentValue = value;
-    if (this.valueSelector.currentIndex == 1){
-      this.valueSelector.display.textContent = value;
-    }
-    this.updateWaveFormMarkers();
+    
+    
   }
     
     get playRate(){

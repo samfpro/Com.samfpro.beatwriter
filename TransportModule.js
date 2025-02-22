@@ -225,6 +225,7 @@ async stopSequencer() {
   });
   this.app.getModule("mixer").stopPlayback();
   this.playButton.classList.remove("active");
+  this.app.getModule("mode").mode = this.app.getModule("mode").previousMode;
 }
 
   async scheduleOsc(node, type, gainNode, time) {
@@ -306,8 +307,8 @@ async createBeatTrack() {
 
   async scheduleTts(time, textToConvert) {
     const playParams = this.app.getModule("playParameters");
-    const ttsVoice = playParams.playParameterValues[1].currentValue;
-    const ttsRate = playParams.playParameterValues[2].currentValue;
+    const ttsVoice = playParams.parameterValues[1].currentValue;
+    const ttsRate = playParams.parameterValues[2].currentValue;
     console.log(`Scheduling TTS for "${textToConvert}" at ${time}s...`);
     try {
       const trimmedText = textToConvert.trim();

@@ -1,96 +1,94 @@
 class Project {
-  constructor(projectUrl = "") {
-    this.projectUrl = projectUrl;
-    this.beatTrackUrl = null;
-    this.BPM = null;
+  constructor(app) {
+    this.app = app; // Store reference to the app instance
+    this.projectName = "untitled";
+    this.projectUrl = "";
+    this.BPM = 83;
+    this.beatTrackUrl = "beatTrack/Turtletuck_83BPM";
     this.cells = [];
-    this.beatTrackLeadInBars = null;
-    this.beatTrackLeadInMS = null;
-    this.ttsVoice = null;
-    this.ttsRate = null;
-    this.startMarkerPosition = null;
-    this.endMarkerPosition = null;
-    this.mode = null;
-    this.currentCell = null;
-    this.mixer = {
-      channel1: { muteState: null, sliderValue: null },
-      channel2: { muteState: null, sliderValue: null },
-      channel3: { muteState: null, sliderValue: null },
-      channel4: { muteState: null, sliderValue: null },
-    };
+    this.offsetBars = 0;
+    this.offsetMS = 0;
+    this.ttsVoice = 4;
+    this.ttsRate = 3;
+    this.startMarkerPosition = 0;
+    this.endMarkerPosition = 4;
+    this.currentCell = 0;
+    this.mixerSettings = null;
   }
 
-  // Method to compile the project into a serialized JSON object
-  compileProject(beatTrack, gridView, mixer, mode, playParams, projMgr) {
+  _initializeMixer() {
+    let mixerSettings = {};
+    for (let i = 1; i <= 4; i++) {
+      mixerSettings[`channel${i}`] = {
+        muteState: (this.mixer && this.mixer.channels && this.mixer.channels[i - 1] && this.mixer.channels[i - 1].muteState) || false,
+        sliderValue: (this.mixer && this.mixer.channels && this.mixer.channels[i - 1] && this.mixer.channels[i - 1].slider && this.mixer.channels[i - 1].slider.value) || 0,
+      };
+    }
+    return mixerSettings;
+  }
+
+  compileProject() {
     console.log("Starting project compilation...");
+    this.projMgr = this.app.getModule("projectManager");
+    this.beatTrack = this.app.getModule("beatTrack");
 
-    // Update project properties
-    this.projectUrl = projMgr.projectUrl;
-    this.beatTrackUrl = beatTrack.beatTrackUrl;
-    this.BPM = playParams.BPM;
-    this.beatTrackLeadInBars = beatTrack.beatTrackLeadInBars;
-    this.beatTrackLeadInMS = beatTrack.beatTrackLeadInMS;
-    this.ttsVoice = playParams.ttsVoice;
-    this.ttsRate = playParams.ttsRate;
-    this.startMarkerPosition = gridView.startMarkerPosition;
-    this.endMarkerPosition = gridView.endMarkerPosition;
-    this.mode = mode.mode;
-    this.currentCell = gridView.currentCell;
+    const proj = JSON.stringify({
+        projectName: this.projectName,
+        projectUrl: this.projectUrl,
+        beatTrackUrl: this.beatTrack.beatTrackUrl,
+        BPM: this.BPM,
+        offsetBars: this.beatTrack.offsetBars,
+        offsetMS: this.beatTrack.offsetMS,
+        ttsVoice: this.ttsVoice,
+        ttsRate: this.ttsRate,
+        startMarkerPosition: this.startMarkerPosition,
+        endMarkerPosition: this.endMarkerPosition,
+        mode: this.mode ? this.mode.mode : MODE_WRITE,
+        currentCell: this.currentCell,
+        cells: this.app.getModule("gridView").cells.map(cell => cell.toJSON()), // Ensure cells are properly serialized
+        mixer: this.mixerSettings || this._initializeMixer()
+    }, null, 2); // Pretty-print JSON
 
-    // Serialize grid cells
-    this.cells = gridView.cells.map((cell) => cell.toJSON());
-    console.log("Grid cells serialized. Total cells: " + this.cells.length);
+    this.projMgr.updatePropertiesDisplay(proj);
+    console.log("Project compiled successfully.");
+    return proj;
+}
 
-    // Update mixer properties
-    mixer.channels.forEach((channel, index) => {
-      this.mixer[`channel${index + 1}`].muteState = channel.muteState;
-      this.mixer[`channel${index + 1}`].sliderValue = channel.slider.value;
-      console.log(`Mixer channel ${index + 1}: muteState=${channel.muteState}, sliderValue=${channel.sliderValue}`);
-    });
-
-    const serializedProject = JSON.stringify(this, Project.getCircularReplacer());
-    console.log("Project successfully compiled. Serialized JSON length: " + serializedProject.length);
-
-    return serializedProject;
-  }
-
-  // Method to load the project from a serialized JSON object
-  loadFromSerializedProject(serializedProject, beatTrack, gridView, mixer, mode, playParams, projMgr) {
+  loadFromSerializedProject(serializedProject) {
+    console.log("Loading project from JSON...");
     const data = JSON.parse(serializedProject);
 
-    // Update project properties
-    projMgr.projectUrl = data.projectUrl;
-    beatTrack.beatTrackUrl = data.beatTrackUrl;
-    playParams.BPM = data.BPM;
-    beatTrack.beatTrackLeadInBars = data.beatTrackLeadInBars;
-    beatTrack.beatTrackLeadInMS = data.beatTrackLeadInMS;
-    playParams.ttsVoice = data.ttsVoice;
-    playParams.ttsRate = data.ttsRate;
-    gridView.startMarkerPosition = data.startMarkerPosition;
-    gridView.endMarkerPosition = data.endMarkerPosition;
-    mode.mode = data.mode;
-    playParams.currentCell = data.currentCell;
+    // Assign values back to modules
+    if (this.projMgr) this.projMgr.projectName = data.projectName;
+    if (this.projMgr) this.projMgr.projectUrl = data.projectUrl;
+    if (this.beatTrack) {
+      this.beatTrack.beatTrackUrl = data.beatTrackUrl;
+      this.beatTrack.offsetBars = data.offsetBars;
+      this.beatTrack.offsetMS = data.offsetMS;
+    }
+    if (this.playParams) {
+      this.playParams.BPM = data.BPM;
+      this.playParams.ttsVoice = data.ttsVoice;
+      this.playParams.ttsRate = data.ttsRate;
+    }
+    if (this.gridView) {
+      this.gridView.startMarkerPosition = data.startMarkerPosition;
+      this.gridView.endMarkerPosition = data.endMarkerPosition;
+      this.gridView.currentCell = data.currentCell;
+      this.gridView.cells = (data.cells && data.cells.map((cellData) => this.gridView.createCellFromData(cellData))) || [];
+    }
+    if (this.mode) this.mode.mode = data.mode;
 
-    // Load grid cells
-    gridView.cells = data.cells.map((cellData) => gridView.createCellFromData(cellData));
-
-    // Load mixer data
-    mixer.channels.forEach((channel, index) => {
-      channel.muteState = data.mixer[`channel${index + 1}`].muteState;
-      channel.sliderValue = data.mixer[`channel${index + 1}`].slider.value;
-    });
-  }
-
-  static getCircularReplacer() {
-    const seen = new WeakSet();
-    return (key, value) => {
-      if (typeof value === "object" && value !== null) {
-        if (seen.has(value)) {
-          return "[Circular]";
-        }
-        seen.add(value);
+    // Load mixer settings
+    if (this.mixer) {
+      if (this.mixer.channels) {
+        this.mixer.channels.forEach((channel, index) => {
+          channel.muteState = (data.mixer && data.mixer[`channel${index + 1}`] && data.mixer[`channel${index + 1}`].muteState) || false;
+          channel.slider.value = (data.mixer && data.mixer[`channel${index + 1}`] && data.mixer[`channel${index + 1}`].sliderValue) || 0;
+        });
       }
-      return value;
-    };
+    }
+
+    console.log("Project successfully loaded.");
   }
 }

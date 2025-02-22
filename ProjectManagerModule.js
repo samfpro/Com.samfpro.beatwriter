@@ -1,171 +1,165 @@
 class ProjectManagerModule extends Module {
   constructor(app, titleText, styleName, htmlFile, parentElement) {
     super(app, titleText, styleName, htmlFile, parentElement);
-    this._projectName = "<untitled>";
-    this._projectUrl = "";
+    this.project = new Project(app);
+    this.fileHandle = null;
     this.autosaveKey = "autosaveData";
-    this.hasManuallyLoadedProject = false;
-    this.propertiesDisplay = null;
-    this.projectNameInput = null;
-    this.saveButton = null;
-    this.loadButton = null;
-    this.newButton = null;
-    this.autosaveInterval = null;
-    this.updatePropertiesDisplay = this.updatePropertiesDisplay.bind(this);
-    window.projectManager = this;
+    this.autosaveProject = this.debounce(this._autosaveProject.bind(this), 1000);
   }
 
   setupDOM() {
     super.setupDOM();
 
-    this.projectNameInput = this.moduleContent.querySelector("#project-name-input");
-    this.saveButton = this.moduleContent.querySelector("#save-button");
-    this.loadButton = this.moduleContent.querySelector("#load-button");
-    this.newButton = this.moduleContent.querySelector("#new-button");
-    this.propertiesDisplay = this.moduleContent.querySelector("#properties-display");
+    // Map of element IDs to property names
+    const elements = [
+      ['save-button', 'saveButton'],
+      ['save-as-button', 'saveAsButton'],
+      ['load-button', 'loadButton'],
+      ['new-button', 'newButton'],
+      ['import-button', 'importButton'],
+      ['export-button', 'exportButton'],
+      ['project-name-display', 'projectNameDisplay'],
+      ["properties-display", "propertiesDisplay"]
+    ];
 
-    if (!this.projectNameInput) console.warn("Project Name Input not found.");
-    if (!this.saveButton) console.warn("Save Button not found.");
-    if (!this.loadButton) console.warn("Load Button not found.");
-    if (!this.newButton) console.warn("New Button not found.");
-
-    this.projectNameInput?.addEventListener("input", (event) => {
-      this.projectName = event.target.value;
+    // Assign elements to instance properties
+    elements.forEach(([id, prop]) => {
+      this[prop] = this.moduleContent.querySelector(`#${id}`);
     });
 
-    this.saveButton?.addEventListener("click", () => this.saveProject());
-    this.loadButton?.addEventListener("click", () => this.openFilePicker());
-    this.newButton?.addEventListener("click", () => this.createNewProject());
+    // Event listeners
+    this.saveButton?.addEventListener('click', () => this.saveProject());
+    this.saveAsButton?.addEventListener('click', () => this.saveProjectAs());
+    this.loadButton?.addEventListener('click', () => this.openFilePicker());
+    this.newButton?.addEventListener('click', () => this.createNewProject());
+    this.importButton?.addEventListener('click', () => this.importText());
+    this.exportButton?.addEventListener('click', () => this.exportText());
 
-    setTimeout(() => {
-      if (!this.hasManuallyLoadedProject) {
-        this.loadAutosave();
-      }
-    }, 100);
+    // Listen to grid changes
+    this.app.gridView?.addEventListener('cell-updated', () => this.autosaveProject());
   }
-
-  autosaveProject() {
-    const serializedData = this.compileProject();
-    localStorage.setItem(this.autosaveKey, serializedData);
-    console.log("Project autosaved.");
-  }
-
-  loadAutosave() {
-    const autosavedData = localStorage.getItem(this.autosaveKey);
-    if (autosavedData) {
-      this.loadFromSerializedData(autosavedData);
-      console.log("Autosave data loaded.");
-    } else {
-      console.log("No autosave data found.");
-    }
-  }
-
-  createNewProject() {
-    const defaultProject = new Project();
-    this.loadFromSerializedData(JSON.stringify(defaultProject));
-    localStorage.removeItem(this.autosaveKey);
-    this.hasManuallyLoadedProject = true;
-  }
-
-  saveProject() {
-    if (!this._projectName.trim()) {
-      alert("Please enter a project name before saving.");
-      return;
-    }
-
-    const serializedData = this.compileProject();
-    if (window.Android) {
-      window.Android.saveFileWithName(serializedData, this._projectName.trim());
-    } else {
-      console.warn("Save functionality is not available in this environment.");
-    }
-  }
-
-  openFilePicker() {
-    if (window.Android) {
-      window.Android.openFilePicker("json");
-    } else {
-      console.warn("Load functionality is not available in this environment.");
-    }
-  }
-
-  handleLoadedFile(fileData) {
-    this.loadFromSerializedData(fileData);
-    this.hasManuallyLoadedProject = true;
-    alert("Project loaded successfully!");
-  }
-
-  loadFromSerializedData(serializedData) {
-    try {
-      const data = JSON.parse(serializedData);
-
-      this.projectName = data.projectName || "<untitled>";
-      this.projectUrl = data.projectUrl || "";
-
-      const gridView = this.app.getModule("gridView");
-      const mixer = this.app.getModule("mixer");
-
-      gridView?.loadGridData(data.cells || []);
-      mixer?.loadMixerSettings(data.mixer || {});
-
-      this.updateUI();
-    } catch (error) {
-      console.error("Failed to load project: " + error);
-    }
-  }
-
-  compileProject() {
-    const projMgr = this.app.getModule("projectManager");
-    const gridView = this.app.getModule("gridView");
-    const mixer = this.app.getModule("mixer");
-    const beatTrack = this.app.getModule("beatTrack");
-    const playParams = this.app.getModule("playParameters");
-    const mode = this.app.getModule("mode");
-
-    const project = new Project(this._projectUrl);
-    return project.compileProject(
-      beatTrack, gridView, mixer, mode, playParams, projMgr
-    );
-  }
-
-  updateUI() {
-    if (this.projectNameInput) this.projectNameInput.value = this._projectName;
-  }
-
-  updatePropertiesDisplay = () => {
-    const proj = new Project();
-    const serializedData = this.compileProject();
-    this.propertiesDisplay.textContent = serializedData;
-  };
 
   get projectName() {
-    return this._projectName;
+    return this.projectNameDisplay.textContent;
   }
 
   set projectName(value) {
-    this._projectName = value;
-    if (this.projectNameInput) this.projectNameInput.value = value;
-    this.updateUI();
+    this.projectNameDisplay.textContent = value;
+    this.autosaveProject(); // Trigger debounced autosave
   }
 
-  get projectUrl() {
-    return this._projectUrl;
+  async saveProject() {
+    if (!this.fileHandle) {
+      return this.saveProjectAs();
+    }
+
+    try {
+      const writable = await this.fileHandle.createWritable();
+      await writable.write(this.project.compileProject());
+      await writable.close();
+      console.log('Project saved successfully.');
+      this.projectNameDisplay.textContent = this.fileHandle;
+    } catch (error) {
+      console.error('Error saving project:', error);
+      const fileName = `${this.projectName || 'untitled'}.json`;
+      this.downloadFile(this.project.compileProject(), fileName);
+    }
   }
 
-  set projectUrl(value) {
-    this._projectUrl = value;
+  async saveProjectAs() {
+    const fileName = `${this.projectName || 'untitled'}.json`;
+    try {
+      this.fileHandle = await window.showSaveFilePicker({
+        suggestedName: fileName,
+        types: [{
+          accept: {'application/json': ['.json']}
+        }]
+      });
+      await this.saveProject();
+    } catch {
+      this.downloadFile(this.project.compileProject(), fileName);
+    }
   }
 
-  static getCircularReplacer() {
-    const seen = new WeakSet();
-    return (key, value) => {
-      if (typeof value === "object" && value !== null) {
-        if (seen.has(value)) {
-          return "[Circular]";
-        }
-        seen.add(value);
-      }
-      return value;
+  async openFilePicker() {
+    try {
+      const [fileHandle] = await window.showOpenFilePicker({
+        types: [{
+          accept: {'application/json': ['.json']}
+        }]
+      });
+      this.fileHandle = fileHandle;
+      this.project.loadFromSerializedProject(await (await fileHandle.getFile()).text());
+      this.projectName = (await fileHandle.getFile()).name.replace('.json', '');
+    } catch (error) {
+      console.error('File picker canceled or failed:', error);
+    }
+  }
+
+  downloadFile(data, fileName) {
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  importText() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'text/plain';
+    input.onchange = e => {
+      const file = e.target.files[0];
+      new FileReader().readAsText(file).onload = e => 
+        this.app.gridView.importText(e.target.result);
+      input.remove(); // Clean up
     };
+    input.click();
+  }
+
+  exportText() {
+    const text = this.app.gridView.exportText();
+    const blob = new Blob([text], {type: 'text/plain'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${this.projectName || 'export'}.txt`;
+    a.click();
+  }
+
+  createNewProject() {
+    this.project = new Project(this.app);
+    this.fileHandle = null;
+    this.projectName = 'untitled';
+  }
+
+  loadAutosave() {
+    const data = localStorage.getItem(this.autosaveKey);
+    if (data) {
+      this.project.loadFromSerializedProject(data);
+      this.projectName = this.project.name || 'untitled'; // Update UI
+    }
+  }
+
+  // Debounce utility function
+  debounce(func, wait) {
+    let timeout;
+    return (...args) => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+  }
+
+  // Actual autosave implementation
+  _autosaveProject() {
+    if (!this.project) return;
+    const data = this.project.compileProject();
+    localStorage.setItem(this.autosaveKey, data);
+    console.log('Project autosaved');
+  }
+  updatePropertiesDisplay(data){
+    this.propertiesDisplay.textContent= data;
   }
 }

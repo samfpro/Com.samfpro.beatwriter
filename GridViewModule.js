@@ -5,6 +5,7 @@ class GridViewModule extends Module {
   constructor(app, titleText, styleName, htmlFile, parentElement) {
     super(app, titleText, styleName, htmlFile, parentElement);
     this.gridViewDisplay = null;
+    this.cellEditorContainer = null;
     this.gridContainer = null;
     this.cells = [];
     this.startMarkers = [];
@@ -15,7 +16,7 @@ class GridViewModule extends Module {
     this.endMarkerContainer = null;
     this.rowLabelContainer = null;
     this.modeWrite = new ModeWrite(this); // Pass `this` (GridViewModule) to ModeWrite
-    this.modeArrange = new ModeArrange(app);
+    this.modeArrange = new ModeArrange(this);
     this.syllableSwitchContainer = null;
     this.syllableSwitch = null;
     this._autoSyllables = true;
@@ -31,7 +32,7 @@ class GridViewModule extends Module {
 
   set autoSyllables(value) {
     this._autoSyllables = value;
-    this.app.getModule("projectManager").updatePropertiesDisplay();
+    this.app.getModule("projectManager").autosaveProject();
   }
 
   get startMarkerPosition() {
@@ -42,7 +43,6 @@ class GridViewModule extends Module {
     if (value >= 0 && value < MARKER_COUNT) {
       this._startMarkerPosition = value;
       this.updateMarker("start", value);
-      this.app.getModule("projectManager").updatePropertiesDisplay();
     } else {
       console.error(`Invalid startMarkerPosition: ${value}`);
     }
@@ -56,21 +56,29 @@ class GridViewModule extends Module {
     if (value >= 0 && value < MARKER_COUNT) {
       this._endMarkerPosition = value;
       this.updateMarker("end", value);
-      this.app.getModule("projectManager").updatePropertiesDisplay();
     } else {
       console.error(`Invalid endMarkerPosition: ${value}`);
     }
   }
 
-  get currentCell() {
+    get currentCell() {
     return this._currentCell;
   }
 
   set currentCell(value) {
+    if (this._currentCell === value) {
+        return; // Prevent redundant reassignments
+    }
     if (value >= 0 && value < GRID_CELL_COUNT) {
+      console.log("current cell is: " + this._currentCell);
+      this.cells[this._currentCell].isCurrentCell = false;
       this._currentCell = value;
-      this.makeCellCurrent(value);
-      this.app.getModule("projectManager").updatePropertiesDisplay();
+      console.log("current cell is: " + this._currentCell);
+  
+      this.cells[value].isCurrentCell = true;
+      // Only focus the cell here
+      this.cells[value].gridCell.focus();
+      console.log("focused on cell" + value);
     } else {
       console.error(`Invalid currentCell: ${value}`);
     }
@@ -80,11 +88,15 @@ class GridViewModule extends Module {
     super.setupDOM();
 
     this.gridViewDisplay = this.moduleContent.querySelector("#grid-view-display");
+    this.cellEditorContainer = this.moduleContent.querySelector("#cell-editor-container");
     this.gridContainer = this.gridViewDisplay.querySelector("#grid-container");
     this.startMarkerContainer = this.gridViewDisplay.querySelector("#start-marker-container");
     this.endMarkerContainer = this.gridViewDisplay.querySelector("#end-marker-container");
     this.syllableSwitchContainer = this.moduleContent.querySelector("#syllable-switch-container");
+    this.cellSyllableSwitchContainer = this.moduleContent.querySelector("#syllable-override-switch");
+    this.cellEmphasizeSwitchContainer = this.moduleContent.querySelector("#emphasize-switch");
     console.log("attempting to build syllable switch with container: " + this.syllableSwitchContainer);
+    
     this.syllableSwitch = new BoolSwitch(
       this.syllableSwitchContainer,
       this.autoSyllables, // Initial state
@@ -94,6 +106,27 @@ class GridViewModule extends Module {
         console.log(`autoSyllables is now: ${newState}`);
       }
     );
+    this.cellSyllableSwitch = new BoolSwitch(
+      this.cellSyllableSwitchContainer,
+      this.cellAutoSyllables, // Initial state
+      "", // Label text
+      (newState) => { // Callback for state changes
+        this.cellAutoSyllables = newState;
+        console.log(`cellAutoSyllables is now: ${newState}`);
+      }
+    );
+    this.emphasizeSwitch = new BoolSwitch(
+      this.cellEmphasizeSwitchContainer,
+      this.cellEmphasize, // Initial state
+      "", // Label text
+      (newState) => { // Callback for state changes
+        this.cellEmphasize = newState;
+        console.log(`cellEmphasize is now: ${newState}`);
+      }
+    );
+    this.timeOffsetDisplay = this.moduleContent.querySelector("#time-offset-display");
+    this.voiceRateDisplay = this.moduleContent.querySelector("#time-offset-display");
+    
 
     // Add a click listener for the entire grid container
     this.gridContainer.addEventListener("click", (event) => {
@@ -110,32 +143,17 @@ class GridViewModule extends Module {
     this.endMarkerContainer.addEventListener("click", (event) => {
       this.handleMarkerClick(event, "end");
     });
+    
+  
   }
-
-  makeCellCurrent(index) {
-    const gridCell = this.cells[index].gridCell;
-    gridCell.contentEditable = true;
-    gridCell.focus();
-
-    // Check if the cell is not blank
-    if (gridCell.textContent.trim() !== "") {
-      // Select all text in the grid cell
-      const range = document.createRange();
-      range.selectNodeContents(gridCell);
-
-      const selection = window.getSelection();
-      selection.removeAllRanges();
-      selection.addRange(range);
-    }
-  }
-
+  
   generateGrid() {
     this.gridContainer.innerHTML = "";
     const rowLabelContainers = this.gridViewDisplay.querySelectorAll(".row-label-container");
     const columnLabelContainers = this.gridViewDisplay.querySelectorAll(".column-label-container");
 
     for (let i = 0; i < GRID_CELL_COUNT; i++) {
-      const cell = new Cell(this.gridContainer, i);
+      const cell = new Cell(this.app, this.gridContainer, this.cellEditorContainer, i);
       this.cells.push(cell);
     }
 
@@ -162,8 +180,7 @@ class GridViewModule extends Module {
       this.startMarkers.push(new StartMarker(this.startMarkerContainer, i).startMarkerCell);
       this.endMarkers.push(new EndMarker(this.endMarkerContainer, i).endMarkerCell);
     }
-    this.startMarkerPosition = 1;
-    this.endMarkerPosition = 5;
+    
   }
 
   handleGridCellClick(event) {
@@ -275,45 +292,30 @@ class GridViewModule extends Module {
   }
 
   updatePlayableCells() {
-    const startCell = this._startMarkerPosition * 16; // Start marker maps to the beginning of the row
-    const endCell = (this._endMarkerPosition + 1) * 16 - 1; // End marker maps to the end of the row
+    console.log("updating Playable Cells");
+    const startCell = this._startMarkerPosition * 16;
+    const endCell = (this._endMarkerPosition + 1) * 16 - 1;
 
-    console.log(`Setting playable cells from ${startCell} to ${endCell}`);
-
-    for (let i = 0; i < this.cells.length; i++) {
-      this.cells[i].isPlayable = i >= startCell && i <= endCell;
-    }
-  }
+ for (let i = 0; i < this.cells.length; i++){
+   if (i < startCell || i > endCell){
+     this.cells[i].isPlayable = false;
+   }else{
+     this.cells[i].isPlayable = true;
+   }
+ }
+}
 
   getWord() {
-    const cell = this.cells[this.currentCell];
-    console.log("current cell: " + cell);
-    return cell.gridCell.textContent; // Return the current cell's content
+  const cell = this.cells[this.currentCell];
+  if (!cell || !cell.gridCell) {
+    console.error("Current cell not found");
+    return "";
   }
-
-  setCellSyllable(index, syllable) {
-    const cell = this.cells[index];
-    cell.syllable = syllable; // Update the internal syllable property
-  }
+  return cell.gridCell.textContent;
+}
 
   getCurrentCellSyllable() {
     return this.cells[this.currentCell]?.syllable || "";
-  }
-
-  moveToNextCell() {
-    this.currentCell++;
-    if (this.currentCell >= this.cells.length) {
-      this.currentCell = 0; // Loop back to the first cell
-    }
-    this.focusCurrentCell();
-  }
-
-  moveToPreviousCell() {
-    this.currentCell--;
-    if (this.currentCell < 0) {
-      this.currentCell = this.cells.length - 1; // Loop back to the last cell
-    }
-    this.focusCurrentCell();
   }
 
   moveToNextRow() {
@@ -322,8 +324,27 @@ class GridViewModule extends Module {
   }
 
   loadGridData(cells) {
-    // Implementation for loading grid data
-  }
+  // Clear existing cell states while preserving DOM elements
+  this.cells.forEach(cell => {
+    cell.syllable = "";
+    cell.isPlayable = false;
+    cell.isCandidate = false;
+  });
+
+  // Update cells with loaded data
+  cells.forEach(cellData => {
+    const cell = this.cells[cellData.index];
+    if (cell) {
+      cell.syllable = cellData.syllable || "";
+      cell.isPlayable = cellData.isPlayable || false;
+      cell.isCandidate = cellData.isCandidate || false;
+    }
+  });
+
+  // Restore marker positions and playable states
+  this.updatePlayableCells();
+  this.currentCell = this._currentCell; // Refresh current cell focus
+}
 
   createCellFromData(data) {
     const existingCell = this.cells.find(cell => cell.index === data.index);
@@ -338,13 +359,30 @@ class GridViewModule extends Module {
     }
 
     // Restore properties from the serialized data
-    cell.syllable = data.syllable || "";
-    cell.isPlayable = !!data.isPlayable;
-    cell.isCandidate = !!data.isCandidate;
-    cell.stepPlaying = !!data.stepPlaying;
-    cell.mode = data.mode || MODE_WRITE;
+    cell._syllable = data.syllable || "";
+    cell._isPlayable = !!data.isPlayable;
+    cell._isCandidate = !!data.isCandidate;
+    cell._stepPlaying = !!data.stepPlaying;
+    cell._mode = data.mode || MODE_WRITE;
 
     return cell;
   }
+  
+  switchMode(mode) {
+    if (mode === MODE_ARRANGE) {
+        this.cells.forEach(cell => {
+            cell.mode = MODE_ARRANGE;
+            cell.isPlayable = false;
+        });
+    } else {
+        this.cells.forEach(cell => {
+            cell.mode = MODE_WRITE;
+            cell.isPlayable = true;
+        });
+    }
+    const pm = this.app.getModule("projectManager");
+    if (pm){
+      pm.autosaveProject();
+    }
 }
-
+}
