@@ -1,0 +1,16 @@
+<svg width="300" height="100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="wornEffect">
+      <!-- Add turbulence for a rough texture -->
+      <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" result="noise" />
+      <!-- Distort the graphic with the noise -->
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="10" />
+      <!-- Erode the edges for a weathered look -->
+      <feMorphology operator="erode" radius="1" />
+    </filter>
+  </defs>
+  <!-- Apply the filter to text -->
+  <text x="10" y="50" font-size="40" font-family="Arial" fill="black" filter="url(#wornEffect)">
+    Worn Text
+  </text>
+</svg>

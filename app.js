@@ -99,7 +99,8 @@ class App {
       }
     ];
     console.log(`[${new Date().toISOString()}] Starting module initialization`);
-    this.ac = new AudioContext();  // Keep this early if needed
+    this.ac = new AudioContext();  // Keep this early if need
+         this.consoleToDiv = new ConsoleToDiv();
     this.initializeApp();
   }
 
@@ -109,7 +110,7 @@ class App {
       await this.initializeModules();
       await this.postInitializationSetup();
     } catch (error) {
-      console.error(`[${new Date().toISOString()}] Critical initialization error:`, error);
+      console.error(`[${new Date().toISOString()}] Critical initialization error:` + error);
       this.lc.show("Initialization failed - please refresh");
     }
   }
@@ -137,29 +138,23 @@ class App {
     await new Promise(resolve => setTimeout(resolve, 50));
     
     // Access modules through safe getter
-    const fm = this.getModule("projectManager");
+    const pm = this.getModule("projectManager");
     const gv = this.getModule("gridView");
     const mm = this.getModule("mode");
     const bt = this.getModule("beatTrack");
           const pp = this.getModule("playParameters");
     // Ensure safe access pattern
-    if (!fm || !gv || !mm || !bt) {
+    if (!pm || !gv || !mm || !bt) {
       throw new Error("Critical modules missing");
     }
 
-   if (!bt.beatTrackUrl) {
-      bt.beatTrackUrl = "beatTrack/Turtletuck_83BPM.mp3";
-      pp.BPM = 83;      
-    }
+  
           console.log("generating Grid");
           gv.generateGrid();
-          gv.startMarkerPosition = 2;
-          gv.endMarkerPosition = 4;
-          
-          mm.mode = MODE_ARRANGE;
-          mm.previousMode = MODE_WRITE;
-            }
-
+          pm.loadAutosave();
+    }
+            
+ 
   getModule(name) {
     const module = this.modules[name];
     if (!module) {
