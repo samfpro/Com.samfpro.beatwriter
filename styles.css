@@ -1,7 +1,7 @@
 :root {
   --text-shadow: 
     0px -.5px 0px rgba(0, 0, 0, 0.75),   /* Top shadow - black */
-    0px .5px 0px rgba(255, 255, 255, 0.75),  /* Right shadow - white */
+    0px .5px 0px rgba(2555, 255, 255, 0.75),  /* Right shadow - white */
     .5px 0px 0px rgba(255, 255, 255, 0.75),  /* Bottom shadow - white */
     -.5px 0px 0px rgba(0, 0, 0, 0.75);   /* Left shadow - black */
 }
@@ -78,6 +78,9 @@ body::before {
   opacity: 0;
   transition: opacity 0.3s, visibility 0.3s;
 }
+#console-container{
+  overflow: auto;
+}
 
 
 .grid-cell.mode-write{
@@ -128,10 +131,10 @@ body::before {
   position: absolute;
   border-style: solid;
   border-color: white;
-  height: 15px;
-  width: 500px;
-  left: 220px;
-  top: 2px;
+  height: 17px;
+  width: 585px;
+  left: 210px;
+  top: 1px;
   background-color: midnightblue;
 }
   .ce-val-pick{
@@ -513,7 +516,7 @@ body::before {
     
 }
 #cp-bottom-row{
-    grid-template-columns: 1fr 1fr 1fr 8fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr 4fr;
     
 }
 #cp-grid-view{
@@ -609,7 +612,7 @@ body::before {
 }
 #detect-bpm-display{
     height: 18px;
-    min-width: 35px;
+     width: 38px;
 }
 
 .button {
@@ -752,12 +755,21 @@ body::before {
 }
 .transport-controls {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr 1fr;
 }
 
 #play-button {
   background-color: darkgreen;
   
+}
+
+#record-button{
+  background-color: darkslateblue;
+  
+}
+
+#record-button.active {
+  background-color: cornflowerblue;
 }
 
 #play-button.active {
