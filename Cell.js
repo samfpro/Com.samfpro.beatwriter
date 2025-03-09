@@ -23,10 +23,12 @@ class Cell {
         this.ce_timeOffsetDisplay = this.cellEditorContainer.querySelector("#time-offset-display");
         this.ce_voiceRateDisplay = this.cellEditorContainer.querySelector("#voice-rate-display");
         this.ce_emphasizeSwitch = this.cellEditorContainer.querySelector("#emphasize-switch");
-        
+        this.ce_indexDisplay = this.cellEditorContainer.querySelector("#index-display");
         
         this.gridCell = this.createDOMElement();
         gridContainer.appendChild(this.gridCell);
+        this.gridCell.addEventListener('blur', this.handleBlur.bind(this));
+   
     }
 
   createDOMElement() {
@@ -36,6 +38,14 @@ class Cell {
       el.contentEditable = true;
     return el;
   }
+    handleBlur() {
+        const newSyllable = this.gridCell.textContent;
+        if (newSyllable !== this._syllable) {
+            this.syllable = newSyllable;
+            // Optional: Notify the app of the update if needed
+            // this.app.onCellUpdated(this);
+        }
+    }
     
     get isPlayable(){
         return this._isPlayable;
@@ -57,6 +67,7 @@ class Cell {
     set isCurrentCell(value){
         this._isCurrentCell = value;
         this.ce_timeOffsetDisplay.textContent = this._timeOffset;
+        this.ce_indexDisplay.textContent = this.index;
     }
     
     get isCandidate() {
@@ -126,7 +137,7 @@ class Cell {
     }
   updateFromData(data) {
     // Update all properties atomically
-      this.syllable = data.syllable || "";
+      this._syllable = data.syllable || "";
       this._syllableOverride = data.syllableOverride || false;
       this._timeOffset = data.timeOffset || 0;
       this._voiceRate = data.voiceRate || 3;
@@ -181,8 +192,7 @@ class EndMarker {
         this.endMarkerCell = null;
         this.endMarkerContainer = endMarkerContainer;
         this.index = index;
-        
-        this.setupDOM();
+             this.setupDOM();
         
     }
     

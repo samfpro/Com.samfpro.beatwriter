@@ -14,14 +14,11 @@ class BeatTrackModule extends Module {
       new ParameterValue("offsetBars", "OFSTBR", 0, 64, 0, "number", (param) => this.handleOffsetBarsChanged(param)),
       new ParameterValue("PlayRate", "PLAYRT", 0, 300, 100, "number", this.updateWaveFormMarkers)
     ];
-    this._offsetBars = 0;
-    this._offsetMS = 0;
-    this._playRate = 0;
     
     this._beatTrackUrl = null;
     this.updateWaveFormMarkers = this.updateWaveFormMarkers.bind(this);
     this.handleOffsetBarsChanged = this.handleOffsetBarsChanged.bind(this);
-    window.beatTrackModule = this;
+    window.beatTrack = this;
     
   }
   // Override setupDOM to handle the DOM elements and event listeners
@@ -47,7 +44,7 @@ class BeatTrackModule extends Module {
     if (!this.beatTrackLoadButton) {
       console.warn("Beat track load button not found.");
     }
-    if (!this.tryBpmButton) {
+    if (!this.detectBpmButton) {
       console.warn("Try BPM button not found.");
    }
 
@@ -60,13 +57,16 @@ class BeatTrackModule extends Module {
     this.loadValueSelector();
   }
   
+  handleAndroidAudioError(error){
+    console.log("android audio error: " + error);
+  }
+  
   handleOffsetBarsChanged(){
-      this._offsetBars = this.parameterValues[1].currentValue;
-    if (this.valueSelector.currentIndex == 1){
-      this.valueSelector.display.textContent = value;
-    }
-    this.updateWaveFormMarkers();
-    this.app.getModule("projectManager").autosaveProject();
+    this.offsetBars = this.parameterValues[1].currentValue;
+      }
+  
+  handleAndroidAudioLoadResult(fileName, fileUri){
+    this.beatTrackUrl = fileUri;
   }
   
   
@@ -84,8 +84,8 @@ class BeatTrackModule extends Module {
 };
   // Open the file picker via Android interface or fallback
   openFilePicker() {
-    if (window.Android) {
-      window.Android.openFilePicker("audio");
+    if (window.AndroidInterface) {
+      window.AndroidInterface.loadAudioFile();
     } else {
       console.warn("File picker not available in this environment.");
     }
@@ -110,18 +110,11 @@ class BeatTrackModule extends Module {
   async handleTryBPM() {
     console.log("Try BPM functionality triggered.");
 
-    // Fetch the beat track file URL from the DiskModule
-    const diskModule = this.app.getModule("disk");
-    if (!diskModule || !diskModule.beatTrackUrl) {
-        console.warn("No beat track URL found in DiskModule.");
-        return;
-    }
-
     // Use XMLHttpRequest to load the audio file
     try {
         const lc = new LoadingCover();
         lc.show("Attempting to find BPM, please wait... ")
-        const audioBlob = await this._loadAudioFile(diskModule.beatTrackUrl);
+        const audioBlob = await this._loadAudioFile(this.beatTrackUrl);
 
         // Analyze BPM using BPMDetector
         const bpmDetector = new BPMDetector();
@@ -221,8 +214,15 @@ _loadAudioFile(fileUrl) {
   }
   
   set offsetBars(value){
+    if(this.parameterValues[1].currentValue != value){
+      this.parameterValues[1].currentValue = value;
+    }
     
-    
+    if (this.valueSelector.currentParameterIndex == 1){
+      this.valueSelector.display.textContent = value;
+    }
+    this.app.getModule("waveFormView").updateMarkers();
+    this.app.getModule("projectManager").autosaveProject();
   }
     
     get playRate(){

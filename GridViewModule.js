@@ -299,8 +299,11 @@ class GridViewModule extends Module {
  for (let i = 0; i < this.cells.length; i++){
    if (i < startCell || i > endCell){
      this.cells[i].isPlayable = false;
+     console.log("set cell " + i + " to Playable False");
    }else{
      this.cells[i].isPlayable = true;
+     console.log("set cell " + i + " to Playable True");
+ 
    }
  }
 }
@@ -326,18 +329,24 @@ class GridViewModule extends Module {
   loadGridData(cells) {
   // Clear existing cell states while preserving DOM elements
   this.cells.forEach(cell => {
-    cell.syllable = "";
-    cell.isPlayable = false;
-    cell.isCandidate = false;
+    cell.updateFromData({
+      syllable: "",
+      syllableOverride: false,
+      timeOffset: 0,
+      voiceRate: 3,
+      emphasize: false,
+      isPlayable: false,
+      isCandidate: false,
+      stepPlaying: false,
+      mode: MODE_WRITE
+    });
   });
 
   // Update cells with loaded data
   cells.forEach(cellData => {
     const cell = this.cells[cellData.index];
     if (cell) {
-      cell.syllable = cellData.syllable || "";
-      cell.isPlayable = cellData.isPlayable || false;
-      cell.isCandidate = cellData.isCandidate || false;
+      cell.updateFromData(cellData);
     }
   });
 

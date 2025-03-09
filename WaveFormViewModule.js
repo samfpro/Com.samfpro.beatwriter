@@ -103,8 +103,11 @@ class WaveFormViewModule extends Module {
       }
     };
 
-    xhr.onerror = () => console.error("Network error while fetching audio file.");
-    xhr.send();
+    xhr.onerror = () => {
+      console.error("Network error while fetching audio file.");
+      this.app.lc.hide();
+    }
+      xhr.send();
   }
 
   updateMarkers() {

@@ -5,6 +5,7 @@ class TransportModule extends Module {
     this.playButton = null;
     this.pauseButton = null;
     this.stopButton = null;
+    this.recordButton = null;
     this.app = app;
     this.ac = app.ac;
     this.sineNodes = Array.from({ length: 256 }, () => null);
@@ -28,6 +29,11 @@ class TransportModule extends Module {
     this.analyzers = []; // Array to store AnalyserNodes
     this.gains = []; // Array to store channel gains
     this.mode = null;
+    this.isRecording = false;
+    this.mediaStreamDest = null;
+    this.recordButton = null;
+    this.mediaRecorder = null;
+    this.recordedChunks = [];
   }
   
   setupDOM() {
@@ -37,12 +43,18 @@ class TransportModule extends Module {
       this.playButton = this.moduleContent.querySelector("#play-button");
       this.pauseButton = this.moduleContent.querySelector("#pause-button");
       this.stopButton = this.moduleContent.querySelector("#stop-button");
-      this.playButton.addEventListener("click", () => {
+      this.recordButton = this.moduleContent.querySelector("#record-button");
+      
+    this.playButton.addEventListener("click", () => {
         this.start();
       });
       this.stopButton.addEventListener("click", () => {
         this.stopSequencer();
-      })
+      });
+    this.recordButton.addEventListener("click", () => {
+      this.toggleRecording();
+    });
+
       this.buildAudioGraph();
   }
     
@@ -52,10 +64,12 @@ class TransportModule extends Module {
   async start() {
   this.app.lc.show("Please Wait");
     console.log("starting playback");
+    if (this.isRecording == true){
+      this.startRecording();
+      console.log("recording...");
+    }
   this.playButton.classList.add("active");
-  this.app.getModule("mixer").startPlayback();
-  this.mode = this.app.getModule("mode").mode;
-  this.previousMode = this.mode;
+  this.app.getModule("mixer").startAnimation();
   this.app.getModule("mode").mode = MODE_PLAY;
 
   await this.resumeAudioContext();
@@ -65,7 +79,7 @@ class TransportModule extends Module {
     const beatTrackNode = await this.createBeatTrack(); // Ensure buffer is loaded
     await this.schedulePlayback(beatTrackNode); // Pass the node to schedulePlayback
   } catch (error) {
-    console.error("Error starting playback:", error);
+    console.error("Error starting playback:" + error);
     alert("Failed to start playback. Please try again.");
   }
     this.app.lc.hide();
@@ -93,13 +107,14 @@ class TransportModule extends Module {
 this.compressor.threshold.value = -50; // dB
 this.compressor.knee.value = 40;       // dB
 this.compressor.ratio.value = 12;      // Ratio
-this.compressor.attack.value = 0.003;  // Seconds
+this.compressor.attack.value = 0.03;  // Seconds
 this.compressor.release.value = 0.25;  // Seconds
 
 // Connect nodes: audio source -> compressor -> destination
 
     this.masterGain = this.ac.createGain();
     console.log(this.ac);
+    this.mediaStreamDest = this.ac.createMediaStreamDestination();
 
     console.log("connecting graph");
 
@@ -110,6 +125,7 @@ this.compressor.release.value = 0.25;  // Seconds
     this.beatTrackGain.connect(this.masterGain);
     this.masterGain.connect(this.compressor);
     this.compressor.connect(this.ac.destination);
+    this.compressor.connect(this.mediaStreamDest); // Connect to recording stream
     this.metronomeGain.gain.setValueAtTime(0.5, this.ac.currentTime);
     this.ttsGain.gain.setValueAtTime(1, this.ac.currentTime);
     this.beatTrackGain.gain.setValueAtTime(0.5, this.ac.currentTime);
@@ -166,7 +182,7 @@ const gridView = this.app.getModule("gridView");
     beatTrackOffsetS = (startPos + (leadInBars * 16)) * this.stepDuration;
   }
   
-  if (leadInMS.currentValue !== 0) {
+  if (leadInMS !== 0) {
     beatTrackOffsetS += leadInMS / 1000;
   }
 
@@ -205,7 +221,7 @@ const gridView = this.app.getModule("gridView");
 
 async stopSequencer() {
   console.log("Stopping sequencer...");
-
+  this.stopRecording();
   // Stop all scheduled nodes
   this.scheduledNodes.forEach(node => {
     try {
@@ -223,7 +239,7 @@ async stopSequencer() {
   cells.forEach(cell => {
     cell.stepPlaying = false;
   });
-  this.app.getModule("mixer").stopPlayback();
+  this.app.getModule("mixer").stopAnimation();
   this.playButton.classList.remove("active");
   this.app.getModule("mode").mode = this.app.getModule("mode").previousMode;
 }
@@ -402,6 +418,50 @@ async createBeatTrack() {
         break;
     }
   }
+  toggleRecording() {
+    if (this.isRecording == false) {
+      this.isRecording = true;
+      this.recordButton.classList.add("active");
+    } else {
+      this.isRecording = false;
+      this.recordButton.classList.remove("active");
+    }
+  }
+
+  startRecording() {
+    console.log("Starting recording...");
+    this.recordedChunks = [];
+    this.mediaRecorder = new MediaRecorder(this.mediaStreamDest.stream);
+
+    this.mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        this.recordedChunks.push(event.data);
+      }
+    };
+
+    this.mediaRecorder.onstop = () => this.saveRecording();
+    this.mediaRecorder.start();
+    ;
+  }
+
+  stopRecording() {
+    console.log("Stopping recording...");
+    this.mediaRecorder.stop();
+    this.isRecording = false;
+    this.recordButton.innerText = "Record";
+  }
+
+  saveRecording() {
+    console.log("Saving recording...");
+    const blob = new Blob(this.recordedChunks, { type: "audio/wav" });
+    const reader = new FileReader();
+    reader.onload = () => {
+        const base64Data = reader.result.split(',')[1];
+        window.AndroidInterface.saveAudioFileAs(base64Data); // Send to Android
+    };
+    reader.readAsDataURL(blob);
+  }
+
 }
 
 

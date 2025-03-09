@@ -1,165 +1,164 @@
 class ProjectManagerModule extends Module {
   constructor(app, titleText, styleName, htmlFile, parentElement) {
     super(app, titleText, styleName, htmlFile, parentElement);
-    this.project = new Project(app);
-    this.fileHandle = null;
+    this.app = app;
+    this._projectName = "untitled";
+    this.projectUri = null; // Store the file path
     this.autosaveKey = "autosaveData";
-    this.autosaveProject = this.debounce(this._autosaveProject.bind(this), 1000);
+    window.projectManager = this;
+    // Try to load autosave on startup
   }
 
   setupDOM() {
     super.setupDOM();
 
-    // Map of element IDs to property names
-    const elements = [
-      ['save-button', 'saveButton'],
-      ['save-as-button', 'saveAsButton'],
-      ['load-button', 'loadButton'],
-      ['new-button', 'newButton'],
-      ['import-button', 'importButton'],
-      ['export-button', 'exportButton'],
-      ['project-name-display', 'projectNameDisplay'],
-      ["properties-display", "propertiesDisplay"]
-    ];
+    const elementMap = {
+      saveButton: "save-button",
+      saveAsButton: "save-as-button",
+      loadButton: "load-button",
+      newButton: "new-button",
+      importButton: "import-button",
+      exportButton: "export-button",
+      projectNameDisplay: "project-name-display",
+      propertiesDisplay: "properties-display"
+    };
 
-    // Assign elements to instance properties
-    elements.forEach(([id, prop]) => {
+    Object.entries(elementMap).forEach(([prop, id]) => {
       this[prop] = this.moduleContent.querySelector(`#${id}`);
     });
 
-    // Event listeners
-    this.saveButton?.addEventListener('click', () => this.saveProject());
-    this.saveAsButton?.addEventListener('click', () => this.saveProjectAs());
-    this.loadButton?.addEventListener('click', () => this.openFilePicker());
-    this.newButton?.addEventListener('click', () => this.createNewProject());
-    this.importButton?.addEventListener('click', () => this.importText());
-    this.exportButton?.addEventListener('click', () => this.exportText());
+    this._addEventListeners();
+  }
 
-    // Listen to grid changes
-    this.app.gridView?.addEventListener('cell-updated', () => this.autosaveProject());
+  _addEventListeners() {
+    const buttonActions = {
+      saveAsButton: () => this.saveProjectAs(),
+      saveButton: () => this.saveProject(),
+      loadButton: () => this.loadProject(),
+      newButton: () => this.createNewProject(),
+      importButton: () => this.importText(),
+      exportButton: () => this.exportText()
+    };
+
+    Object.entries(buttonActions).forEach(([button, action]) => {
+      if (this[button]) {
+        this[button].addEventListener("click", action);
+      }
+    });
   }
 
   get projectName() {
-    return this.projectNameDisplay.textContent;
+    return this._projectName;
   }
 
   set projectName(value) {
-    this.projectNameDisplay.textContent = value;
-    this.autosaveProject(); // Trigger debounced autosave
+    if (!value || value === this._projectName) return;
+
+    console.log("Setting project name:", value);
+    this._projectName = value;
+    if (this.projectNameDisplay) {
+      this.projectNameDisplay.textContent = value;
+      console.log("Updated project name display:", this.projectNameDisplay.textContent);
+    }
   }
 
   async saveProject() {
-    if (!this.fileHandle) {
+    if (!this.projectUri) {
       return this.saveProjectAs();
     }
 
-    try {
-      const writable = await this.fileHandle.createWritable();
-      await writable.write(this.project.compileProject());
-      await writable.close();
-      console.log('Project saved successfully.');
-      this.projectNameDisplay.textContent = this.fileHandle;
-    } catch (error) {
-      console.error('Error saving project:', error);
-      const fileName = `${this.projectName || 'untitled'}.json`;
-      this.downloadFile(this.project.compileProject(), fileName);
+    const projectData = this.project.compileProject();
+    this.propertiesDisplay.textContent = projectData;
+    if (window.AndroidInterface?.saveFile) {
+      window.AndroidInterface.saveFile(this.projectUri, projectData);
+      console.log("Project saved:", this.projectUri);
+    } else {
+      console.error("Android interface not available for saving.");
     }
   }
 
   async saveProjectAs() {
-    const fileName = `${this.projectName || 'untitled'}.json`;
-    try {
-      this.fileHandle = await window.showSaveFilePicker({
-        suggestedName: fileName,
-        types: [{
-          accept: {'application/json': ['.json']}
-        }]
-      });
-      await this.saveProject();
-    } catch {
-      this.downloadFile(this.project.compileProject(), fileName);
+    if (window.AndroidInterface?.saveFileAs) {
+      const projectData = this.project.compileProject();
+      window.AndroidInterface.saveFileAs(projectData);
+    } else {
+      console.error("Android interface not available for save as.");
     }
   }
 
-  async openFilePicker() {
+  async loadProject() {
+    if (window.AndroidInterface?.loadFile) {
+      window.AndroidInterface.loadFile();
+    } else {
+      console.error("Android interface not available for loading.");
+    }
+  }
+
+  autosaveProject() {
     try {
-      const [fileHandle] = await window.showOpenFilePicker({
-        types: [{
-          accept: {'application/json': ['.json']}
-        }]
-      });
-      this.fileHandle = fileHandle;
-      this.project.loadFromSerializedProject(await (await fileHandle.getFile()).text());
-      this.projectName = (await fileHandle.getFile()).name.replace('.json', '');
+      const data = this.project.compileProject();
+      localStorage.setItem(this.autosaveKey, data);
+      this.propertiesDisplay.textContent = data;
+      console.log("Project autosaved.");
     } catch (error) {
-      console.error('File picker canceled or failed:', error);
+      console.error("Failed to autosave project:", error);
     }
   }
 
-  downloadFile(data, fileName) {
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  importText() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'text/plain';
-    input.onchange = e => {
-      const file = e.target.files[0];
-      new FileReader().readAsText(file).onload = e => 
-        this.app.gridView.importText(e.target.result);
-      input.remove(); // Clean up
-    };
-    input.click();
-  }
-
-  exportText() {
-    const text = this.app.gridView.exportText();
-    const blob = new Blob([text], {type: 'text/plain'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${this.projectName || 'export'}.txt`;
-    a.click();
+  loadAutosave() {
+    try {
+      const data = localStorage.getItem(this.autosaveKey);
+      if (data) {
+        this.project = new Project(this.app);
+        this.project.loadFromSerializedProject(data);
+        console.log("Autosaved project loaded successfully.");
+      } else {
+        console.log("No autosaved project found.");
+        this.createNewProject();
+      }
+    } catch (error) {
+      console.error("Failed to load autosaved project:", error);
+      this.createNewProject();
+      localStorage.removeItem(this.autosaveKey);
+    }
   }
 
   createNewProject() {
     this.project = new Project(this.app);
-    this.fileHandle = null;
-    this.projectName = 'untitled';
+    this.projectName = "untitled";
+    this.projectUri = null;
+    this.project.createNewProject();
+    console.log("New project created.");
   }
 
-  loadAutosave() {
-    const data = localStorage.getItem(this.autosaveKey);
-    if (data) {
-      this.project.loadFromSerializedProject(data);
-      this.projectName = this.project.name || 'untitled'; // Update UI
+  handleAndroidSaveAsResult(fileName, fileUri) {
+    if (fileName && fileUri) {
+      console.log("Save As selected: " + fileName);
+      console.log("File URI: " + fileUri);
+
+      this.projectName = fileName.replace(/\.json$/, "");
+      this.projectUri = fileUri;
+
+      const compiledData = this.project.compileProject();
+      if (window.AndroidInterface) {
+        window.AndroidInterface.saveFile(fileUri, compiledData);
+      } else {
+        console.warn("Android interface not available.");
+      }
     }
   }
 
-  // Debounce utility function
-  debounce(func, wait) {
-    let timeout;
-    return (...args) => {
-      clearTimeout(timeout);
-      timeout = setTimeout(() => func.apply(this, args), wait);
-    };
+  handleAndroidSaveResult(fileName, fileUri) {
+    console.log("File saved successfully: " + fileName);
+    console.log("File URI: " + fileUri);
+    this.propertiesDisplay.textContent = this.project.compileProject();
+    this.projectNameDisplay.textContent = fileName;
+    alert("Project saved as: " + fileName);
   }
 
-  // Actual autosave implementation
-  _autosaveProject() {
-    if (!this.project) return;
-    const data = this.project.compileProject();
-    localStorage.setItem(this.autosaveKey, data);
-    console.log('Project autosaved');
-  }
-  updatePropertiesDisplay(data){
-    this.propertiesDisplay.textContent= data;
+  handleAndroidLoadResult(serializedProject) {
+    this.project = new Project(this.app);
+    this.project.loadFromSerializedProject(serializedProject);
+    console.log("Project loaded successfully.");
   }
 }

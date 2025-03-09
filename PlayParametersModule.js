@@ -33,13 +33,13 @@ class PlayParametersModule extends Module {
   set BPM(value) {
     this.parameterValues[0].currentValue = value;
 
-    if (this.valueSelector?.currentIndex === 0) {
+    if (this.valueSelector?.currentParameterIndex === 0) {
+      console.log("setting vs displayvfor bpm to: " + value);
       this.valueSelector.display.textContent = value;
     }
 
     // Custom logic for BPM
-    this.app.getModule("waveFormView").bpm = value;
-    this.app.getModule("transport").bpm = value;
+    this.app.getModule("projectManager").autosaveProject();
     console.log(`BPM updated to ${value}`);
   }
 

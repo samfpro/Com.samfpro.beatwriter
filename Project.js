@@ -1,27 +1,64 @@
 class Project {
   constructor(app) {
     this.app = app; // Store reference to the app instance
-    this.projectName = "untitled";
-    this.projectUrl = "";
-    this.BPM = 83;
-    this.beatTrackUrl = "beatTrack/Turtletuck_83BPM";
-    this.cells = [];
-    this.offsetBars = 0;
-    this.offsetMS = 0;
-    this.ttsVoice = 4;
-    this.ttsRate = 3;
-    this.startMarkerPosition = 0;
-    this.endMarkerPosition = 4;
-    this.currentCell = 0;
-    this.mixerSettings = null;
   }
+
+  createNewProject() {
+  console.log("Creating a new blank project...");
+
+  const newProjectJson = JSON.stringify({
+    projectName: "untitled",
+    projectUri: "",
+    beatTrackUrl: "beatTrack/Turtletuck_83BPM.mp3",
+    BPM: 83,
+    mode: MODE_WRITE,
+    offsetBars: 0,
+    offsetMS: 0,
+    ttsVoice: 4,
+    ttsRate: 3,
+    startMarkerPosition: 0,
+    endMarkerPosition: 4,
+    currentCell: 0,
+    cells: this._getClearedCells(),  // Keep cell structure instead of creating an empty array
+    mixer: this._initializeMixer()
+  });
+
+  this.loadFromSerializedProject(newProjectJson);
+}
 
   _initializeMixer() {
     let mixerSettings = {};
     for (let i = 1; i <= 4; i++) {
       mixerSettings[`channel${i}`] = {
-        muteState: (this.mixer && this.mixer.channels && this.mixer.channels[i - 1] && this.mixer.channels[i - 1].muteState) || false,
-        sliderValue: (this.mixer && this.mixer.channels && this.mixer.channels[i - 1] && this.mixer.channels[i - 1].slider && this.mixer.channels[i - 1].slider.value) || 0,
+        muteState: MUTE_STATE_OFF,
+        sliderValue: 0.8,
+      };
+    }
+    return mixerSettings;
+  }
+  _getClearedCells() {
+  const gridView = this.app.getModule("gridView");
+  return gridView.cells.map(cell => ({
+    index: cell.index,
+    syllable: "",
+    syllableOverride: false,
+    timeOffset: 0,
+    voiceRate: 3,
+    emphasize: false,
+    isPlayable: false,
+    isCandidate: false,
+    stepPlaying: false,
+    mode: MODE_WRITE
+  }));
+}
+  
+  getMixerSettings() {
+    const mixer = this.app.getModule("mixer");
+    let mixerSettings = {};
+    for (let i = 1; i <= 4; i++) {
+      mixerSettings[`channel${i}`] = {
+        muteState: mixer.channels[i-1].muteState,
+        sliderValue: mixer.channels[i-1].slider.value,
       };
     }
     return mixerSettings;
@@ -29,66 +66,71 @@ class Project {
 
   compileProject() {
     console.log("Starting project compilation...");
-    this.projMgr = this.app.getModule("projectManager");
-    this.beatTrack = this.app.getModule("beatTrack");
 
-    const proj = JSON.stringify({
-        projectName: this.projectName,
-        projectUrl: this.projectUrl,
-        beatTrackUrl: this.beatTrack.beatTrackUrl,
-        BPM: this.BPM,
-        offsetBars: this.beatTrack.offsetBars,
-        offsetMS: this.beatTrack.offsetMS,
-        ttsVoice: this.ttsVoice,
-        ttsRate: this.ttsRate,
-        startMarkerPosition: this.startMarkerPosition,
-        endMarkerPosition: this.endMarkerPosition,
-        mode: this.mode ? this.mode.mode : MODE_WRITE,
-        currentCell: this.currentCell,
-        cells: this.app.getModule("gridView").cells.map(cell => cell.toJSON()), // Ensure cells are properly serialized
-        mixer: this.mixerSettings || this._initializeMixer()
-    }, null, 2); // Pretty-print JSON
+    const projMgr = this.app.getModule("projectManager");
+    const beatTrack = this.app.getModule("beatTrack");
+    const playParams = this.app.getModule("playParameters");
+    const gridView = this.app.getModule("gridView");
+    const mode = this.app.getModule("mode");
+    const filteredCells = gridView.cells
+      .filter(cell => cell.syllable && cell.syllable.trim() !== "")
+      .map(cell => cell.toJSON());
 
-    this.projMgr.updatePropertiesDisplay(proj);
-    console.log("Project compiled successfully.");
-    return proj;
-}
+    return JSON.stringify({
+      projectName: projMgr.projectName,
+      projectUri: projMgr.projectUri,
+      beatTrackUrl: beatTrack.beatTrackUrl,
+      BPM: playParams.BPM,
+      offsetBars: beatTrack.offsetBars,
+      offsetMS: beatTrack.offsetMS,
+      ttsVoice: playParams.ttsVoice,
+      ttsRate: playParams.ttsRate,
+      startMarkerPosition: gridView.startMarkerPosition,
+      endMarkerPosition: gridView.endMarkerPosition,
+      mode: mode.mode,
+      currentCell: gridView.currentCell,
+      cells: filteredCells,
+      mixer: this.getMixerSettings()
+    }, null, 2);
+  }
 
   loadFromSerializedProject(serializedProject) {
     console.log("Loading project from JSON...");
     const data = JSON.parse(serializedProject);
 
-    // Assign values back to modules
-    if (this.projMgr) this.projMgr.projectName = data.projectName;
-    if (this.projMgr) this.projMgr.projectUrl = data.projectUrl;
-    if (this.beatTrack) {
-      this.beatTrack.beatTrackUrl = data.beatTrackUrl;
-      this.beatTrack.offsetBars = data.offsetBars;
-      this.beatTrack.offsetMS = data.offsetMS;
+    const projMgr = this.app.getModule("projectManager");
+    const beatTrack = this.app.getModule("beatTrack");
+    const playParams = this.app.getModule("playParameters");
+    const gridView = this.app.getModule("gridView");
+    const mixer = this.app.getModule("mixer");
+    const mode = this.app.getModule("mode");
+    if (projMgr) {
+        projMgr.projectName = data.projectName;
+        projMgr.projectUri = data.projectUri;
     }
-    if (this.playParams) {
-      this.playParams.BPM = data.BPM;
-      this.playParams.ttsVoice = data.ttsVoice;
-      this.playParams.ttsRate = data.ttsRate;
+    if (beatTrack) {
+        beatTrack.beatTrackUrl = data.beatTrackUrl;
+        beatTrack.offsetBars = data.offsetBars;
+        beatTrack.offsetMS = data.offsetMS;
     }
-    if (this.gridView) {
-      this.gridView.startMarkerPosition = data.startMarkerPosition;
-      this.gridView.endMarkerPosition = data.endMarkerPosition;
-      this.gridView.currentCell = data.currentCell;
-      this.gridView.cells = (data.cells && data.cells.map((cellData) => this.gridView.createCellFromData(cellData))) || [];
+    if (playParams) {
+        playParams.BPM = data.BPM;
+        playParams.ttsVoice = data.ttsVoice;
+        playParams.ttsRate = data.ttsRate;
     }
-    if (this.mode) this.mode.mode = data.mode;
-
-    // Load mixer settings
-    if (this.mixer) {
-      if (this.mixer.channels) {
-        this.mixer.channels.forEach((channel, index) => {
-          channel.muteState = (data.mixer && data.mixer[`channel${index + 1}`] && data.mixer[`channel${index + 1}`].muteState) || false;
-          channel.slider.value = (data.mixer && data.mixer[`channel${index + 1}`] && data.mixer[`channel${index + 1}`].sliderValue) || 0;
-        });
-      }
+    if (gridView) {
+        gridView.startMarkerPosition = data.startMarkerPosition;
+        gridView.endMarkerPosition = data.endMarkerPosition;
+        gridView.currentCell = data.currentCell;
+        gridView.loadGridData(Array.isArray(data.cells) ? data.cells : []);
+    }
+    if (mixer && data.mixer) {
+        mixer.loadMixerSettings(data.mixer);
+    }
+    if (mode) {
+      mode.mode = data.mode;
     }
 
     console.log("Project successfully loaded.");
-  }
+}
 }

@@ -40,8 +40,7 @@ class LoadingCover {
     this.textContainer.style.left = `${viewportWidth / 2}px`;
     this.textContainer.style.top = `${viewportHeight / 2}px`;
     this.textContainer.style.transform = "translate(-50%, -50%)";
-
-    console.log("Updated position of LoadingCover text container.");
+    
   }
 
   // Show the cover with custom text
